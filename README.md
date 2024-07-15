@@ -514,7 +514,7 @@ Suggestions for improvements are always welcome!
 All PyTorch Lightning modules are dynamically instantiated from module paths specified in config. Example model config:
 
 ```yaml
-_target_: src.models.mnist_model.MNISTLitModule
+_target_: src.models.mnist_model.VQVaeLitModel
 lr: 0.001
 net:
   _target_: src.models.components.simple_dense_net.SimpleDenseNet
@@ -784,7 +784,7 @@ defaults:
 
 # choose metric which will be optimized by Optuna
 # make sure this is the correct name of some metric logged in lightning module!
-optimized_metric: "val/acc_best"
+optimized_metric: "val_loss_best"
 
 # here we define Optuna hyperparameter search
 # it optimizes for value returned from function with @hydra.main decorator
@@ -1003,10 +1003,10 @@ For example, instead of calculating accuracy by yourself, you should use the pro
 from torchmetrics.classification.accuracy import Accuracy
 
 
-class LitModel(LightningModule):
+class VQVaeLitModel(LightningModule):
     def __init__(self)
         self.train_acc = Accuracy()
-        self.val_acc = Accuracy()
+        self.val_loss = Accuracy()
 
     def training_step(self, batch, batch_idx):
         ...
@@ -1016,8 +1016,8 @@ class LitModel(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         ...
-        acc = self.val_acc(predictions, targets)
-        self.log("val/acc", acc)
+        acc = self.val_loss(predictions, targets)
+        self.log("val_acc", acc)
         ...
 ```
 
@@ -1035,14 +1035,14 @@ The style guide is available [here](https://pytorch-lightning.readthedocs.io/en/
 1. Be explicit in your init. Try to define all the relevant defaults so that the user doesn’t have to guess. Provide type hints. This way your module is reusable across projects!
 
    ```python
-   class LitModel(LightningModule):
+   class VQVaeLitModel(LightningModule):
        def __init__(self, layer_size: int = 256, lr: float = 0.001):
    ```
 
 2. Preserve the recommended method order.
 
    ```python
-   class LitModel(LightningModule):
+   class VQVaeLitModel(LightningModule):
 
        def __init__():
            ...
@@ -1132,8 +1132,8 @@ pip install git+git://github.com/YourGithubName/your-repo-name.git --upgrade
 So any file can be easily imported into any other file like so:
 
 ```python
-from project_name.models.mnist_module import MNISTLitModule
-from project_name.data.mnist_datamodule import MNISTDataModule
+from project_name.models.mnist_module import VQVaeLitModel
+from project_name.data.mnist_datamodule import MotionDataModule
 ```
 
 </details>
