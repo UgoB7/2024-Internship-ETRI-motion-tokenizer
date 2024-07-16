@@ -58,7 +58,7 @@ mysql-connector
 
 packaging~=21.3
 einops~=0.6.0
-ipython~=8.6.0
+ipython~=8.26.0
 
 google-cloud-texttospeech
 pygame
