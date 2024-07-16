@@ -57,7 +57,7 @@ pandas~=1.5.1
 mysql-connector
 
 packaging~=21.3
-einops~=0.6.0
+einops~=0.8.0
 ipython~=8.6.0
 
 google-cloud-texttospeech
