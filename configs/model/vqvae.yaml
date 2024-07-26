@@ -1,0 +1,33 @@
+_target_: src.models.vae_module.VQVaeLitModel
+
+nfeats: ${data.pose_dim}
+quantizer: "ema_reset" 
+code_num: 256
+code_dim: 512
+output_emb_width: 512
+down_t: 3
+stride_t: 2
+width: 512
+depth: 3
+dilation_growth_rate: 3
+norm: None
+activation: "relu"
+normalization_method: ${data.normalization_method}
+data_norm_stat_path: ${data.data_norm_stat_path}
+recons_loss: "l1_smooth"
+nb_joints: ${data.n_joints}
+commit:  0.02
+loss_vel_factor:  0.5 # old value: 0.1
+
+optimizer_cfg:
+  target: torch.optim.AdamW
+  params:
+    lr: 2e-4
+    betas: [0.9, 0.99]
+    weight_decay: 0.0
+
+scheduler_cfg:  
+  target: torch.optim.lr_scheduler.CosineAnnealingLR
+  params:
+    T_max: 100
+    eta_min: 1e-6

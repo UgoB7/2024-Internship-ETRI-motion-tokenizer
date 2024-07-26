@@ -1,0 +1,20 @@
+_target_: src.data.gesture_datamodule.MotionDataModule
+dataset_name: "beat"
+motion_type: "bvh"
+train_dir: "data/lmdb_train"
+val_dir: "data/lmdb_val"
+test_dir: "data/lmdb_test"
+
+
+batch_size: 256
+num_workers: 0
+pin_memory: False
+n_poses: 128
+n_preposes: 32
+n_joints: 73  # 25 (body) or 73 (body+finger)
+pose_dim: 657  # n_joints*3 + n_joints*6; 225 or 657
+motion_fps: 15
+raw_data_path: ${paths.data_dir}
+data_norm_stat_path: "data/motion_data_stat.npy"
+normalization_method: 'mean-std'  # min-max, mean-std
+use_weighted_sampler: False
