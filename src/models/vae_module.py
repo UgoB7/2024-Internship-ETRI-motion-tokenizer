@@ -22,6 +22,10 @@ from collections import OrderedDict
 from src.utils.viz_util import unnormalize, render_aihub_motion
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+from PIL import Image
 
 
 class ReConsLoss(nn.Module):
@@ -165,17 +169,17 @@ class VQVaeLitModel(LightningModule):
         x = x.permute(0, 2, 1)
         return x
 
-    def forward(self, features: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, features: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         """
         Forward pass through the network.
         """
         x_in = self.preprocess(features)
         x_encoder = self.encoder(x_in)
-        x_quantized, loss_commit, perplexity = self.quantizer(x_encoder)
+        x_quantized, loss_commit, perplexity, codebook, code_idx = self.quantizer(x_encoder)  # include codebook and code_idx
         x_decoder = self.decoder(x_quantized)
         x_out = self.postprocess(x_decoder)
 
-        return x_out, loss_commit, perplexity
+        return x_out, loss_commit, perplexity, codebook, code_idx
     
     
     def compute_loss(self, pred_motion: Tensor, gt_motion: Tensor, loss_commit: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -192,8 +196,9 @@ class VQVaeLitModel(LightningModule):
         """
         Training step.
         """
+        #  print(f"########################## Batch Index: {batch_idx} ##########################")
         features, _, __ = batch
-        x_out, loss_commit, perplexity = self(features)
+        x_out, loss_commit, perplexity, codebook, code_idx = self(features) 
         total_loss, loss_motion, loss_commit, loss_vel = self.compute_loss(x_out, features, loss_commit)
         batch_size = features.size(0)
         self.log('train_loss', total_loss, batch_size=batch_size)
@@ -212,12 +217,13 @@ class VQVaeLitModel(LightningModule):
         # Optional hook
         pass
 
+
     def validation_step(self, batch: Tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         """
         Validation step.
         """
         features, audio, aux_info = batch
-        x_out, loss_commit, perplexity = self(features)
+        x_out, loss_commit, perplexity, codebook, code_idx = self(features)
         total_loss, loss_motion, loss_commit, loss_vel = self.compute_loss(x_out, features, loss_commit)
         batch_size = features.size(0)
         self.log('val_loss', total_loss, batch_size=batch_size)
@@ -226,20 +232,19 @@ class VQVaeLitModel(LightningModule):
         self.log('val_loss_vel', self.loss_vel_factor * loss_vel, batch_size=batch_size)
         self.log('val_perplexity', perplexity)
 
-        if batch_idx < 3:
-            self._save_sample_video(features, x_out, batch_idx)
+        if batch_idx < 1:
+            self._save_sample_video(features, x_out, batch_idx, code_idx)
+            self._log_codebook_to_wandb(codebook, code_idx, batch_idx, sample_indices=[100])
 
         return total_loss
 
-    
-
-    def _save_sample_video(self, features: Tensor, x_out: Tensor, batch_idx: int) -> None:
+    def _save_sample_video(self, features: Tensor, x_out: Tensor, batch_idx: int, code_idx: Tensor) -> None:
         """
         Save sample videos during validation.
         """
         output_dir = self.trainer.default_root_dir
         epoch = self.current_epoch
-        sample_indices = [0, 7, 15]  # Indices of the samples you want to save videos for
+        sample_indices = [100]
 
         for sample_idx in sample_indices:
             title = f"Sample {sample_idx}, Epoch {epoch}, Batch {batch_idx}"
@@ -259,34 +264,60 @@ class VQVaeLitModel(LightningModule):
                 out_mp4_path = render_aihub_motion(joint_pos, None, title, out_path=output_dir, out_name=out_name)
                 mp4_paths.append(out_mp4_path)
 
+            # Generate token IDs string
+            sample_code_idx = code_idx[sample_idx * 16:(sample_idx + 1) * 16].detach().cpu().numpy()
+            token_ids_str = ', '.join(map(str, sample_code_idx))
+
             if len(mp4_paths) == 2:
                 out_path = os.path.join(output_dir, f'sample_{sample_idx}_epoch_{epoch}_batch_{batch_idx}_recon.mp4')
                 cmd = ['ffmpeg', '-loglevel', 'panic', '-y', '-i', mp4_paths[0], '-i', mp4_paths[1], '-filter_complex', 'hstack', out_path]
                 subprocess.call(cmd)
                 if self.trainer.logger is not None:
-                    wandb.log({f"val/video_sample_{sample_idx}": wandb.Video(out_path, fps=30, format="mp4")})
+                    # Log the video and include token IDs in the metadata
+                    video_log = wandb.Video(out_path, fps=30, format="mp4", caption=f"Tokens: {token_ids_str}")
+                    wandb.log({
+                        f"val/video_sample_{sample_idx}_batch_{batch_idx}": video_log
+                    })
 
-
-    def validation_step_end(self, outputs):
-        # Optional hook
-        pass
-
-    def on_validation_epoch_end(self):
-        # Optional hook
-        pass
+    def _log_codebook_to_wandb(self, codebook, code_idx, batch_idx, sample_indices):
+        # Visualize codebook
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(codebook.detach().cpu().numpy(), cmap='viridis')
+        plt.title(f'Codebook Visualization - Batch {batch_idx}')
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        img = Image.open(buf)
+        img_array = np.array(img)
+        wandb.log({f'codebook_visualization_batch_{batch_idx}': wandb.Image(img_array)})
+        plt.close()
+        
+        # Visualize code indices
+        for sample_idx in sample_indices:
+            sample_code_idx = code_idx[sample_idx * 16:(sample_idx + 1) * 16]
+            plt.figure(figsize=(10, 8))
+            sns.histplot(sample_code_idx.detach().cpu().numpy(), bins=self.quantizer.nb_code)
+            plt.title(f'Code Indices Histogram - Sample {sample_idx} - Batch {batch_idx}')
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img = Image.open(buf)
+            img_array = np.array(img)
+            wandb.log({f'code_indices_histogram_sample_{sample_idx}_batch_{batch_idx}': wandb.Image(img_array)})
+            plt.close()
 
     def test_step(self, batch: Tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         """
         Test step.
         """
         features, _, __ = batch
-        x_out, loss_commit, perplexity = self(features)
+        x_out, loss_commit, perplexity, codebook, code_idx = self(features) 
         total_loss, loss_motion, loss_commit, loss_vel = self.compute_loss(x_out, features, loss_commit)
         batch_size = features.size(0)
         self.log('test_loss', total_loss, batch_size=batch_size)
         self.log('test_loss_motion', loss_motion, batch_size=batch_size)
-        self.log('test_loss_commit', self.commit * loss_commit, batch_size=batch_size)
-        self.log('test_loss_vel', self.loss_vel_factor * loss_vel, batch_size=batch_size)
+        self.log('test_loss_commit', loss_commit, batch_size=batch_size)
+        self.log('test_loss_vel', loss_vel, batch_size=batch_size)
         self.log('test_perplexity', perplexity)
 
         return total_loss
@@ -303,72 +334,6 @@ class VQVaeLitModel(LightningModule):
     def any_extra_hook(self):
         # Any extra hooks or methods can be added here
         pass
-
-    def encode(
-        self,
-        features: Tensor,
-    ) -> Union[Tensor, Distribution]:
-
-        N, T, _ = features.shape
-        x_in = self.preprocess(features)
-        
-
-        x_encoder = self.encoder(x_in)
-        
-        x_encoder = self.postprocess(x_encoder)
-        x_encoder = x_encoder.contiguous().view(-1, x_encoder.shape[-1])  # (NT, C)
-        code_idx = self.quantizer.quantize(x_encoder)
-        code_idx = code_idx.view(N, -1)
-
-        # latent, dist
-        return code_idx, None
-    
-
-    def visualize_latent_space(self, data_loader):
-        all_latents = []
-
-        # Gather all latent vectors
-        self.eval()
-        with torch.no_grad():
-            for batch in data_loader:
-                features, _, __ = batch  # Unpack the batch and drop audio and aux_info
-                # print(f"########################## Features shape: {features.shape} ##########################") # torch.Size([256, 128, 657])
-                
-                x_in = self.preprocess(features)
-                # print(f"########################## x_in shape after preprocess: {x_in.shape} ##########################") # torch.Size([256, 657, 128])
-                
-                latents = self.encode(x_in)
-                print(f"########################## Latents shape: {latents.shape} ##########################")
-                
-                all_latents.append(latents.cpu().numpy())
-        
-        all_latents = np.concatenate(all_latents, axis=0)
-        print(f"########################## All latents concatenated shape: {all_latents.shape} ##########################")
-
-        # Reduce dimensionality using t-SNE
-        tsne = TSNE(n_components=2, verbose=1, random_state=123)
-        tsne_results = tsne.fit_transform(all_latents)
-        print(f"########################## t-SNE results shape: {tsne_results.shape} ##########################")
-
-        # Plotting
-        plt.figure(figsize=(10, 10))
-        plt.scatter(tsne_results[:, 0], tsne_results[:, 1], alpha=0.5)
-        plt.title('Latent Space Visualization')
-        plt.xlabel('t-SNE Component 1')
-        plt.ylabel('t-SNE Component 2')
-        plt.show()
-
-
-
-    def decode(self, z: Tensor):
-
-        x_d = self.quantizer.dequantize(z)
-        x_d = x_d.view(1, -1, self.code_dim).permute(0, 2, 1).contiguous()
-
-        # decoder
-        x_decoder = self.decoder(x_d)
-        x_out = self.postprocess(x_decoder)
-        return x_out
 
 
 class Encoder(nn.Module):

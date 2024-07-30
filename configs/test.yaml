@@ -35,8 +35,12 @@ train: False
 test: True
 
 # provide checkpoint path for testing
-ckpt_path: "D:/motion-tokenizer/logs/train/runs/2024-07-25_15-12-57/checkpoints/epoch_003.ckpt"
+ckpt_path: "D:\\motion-tokenizer\\logs\\train\\runs\\2024-07-26_13-51-29\\checkpoints\\last.ckpt"
+
+wandb_project: "motion-tokenizer_test"
 
 
 # seed for random number generators in pytorch, numpy and python.random
 seed: 1234
+
+

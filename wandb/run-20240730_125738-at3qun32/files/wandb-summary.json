@@ -1,0 +1,1 @@
+{"test_loss": 0.1333996206521988, "test_loss_motion": 0.08763324469327927, "test_loss_commit": 2.1894149780273438, "test_loss_vel": 0.003956176340579987, "test_perplexity": 12.26561450958252, "epoch": 0, "trainer/global_step": 0, "_timestamp": 1722311861.5125554, "_runtime": 3.3999574184417725, "_step": 0, "_wandb": {"runtime": 2}}

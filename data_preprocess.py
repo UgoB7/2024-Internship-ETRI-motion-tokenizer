@@ -148,6 +148,7 @@ def main(cfg: DictConfig):
     dataset_name = cfg.data.dataset_name
     if dataset_name == 'beat':
         train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
+        #print('##########################################', cfg.data.train_dir)
         val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
         test_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
 

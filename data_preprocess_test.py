@@ -30,7 +30,6 @@ def preprocess(lmdb_dir, cfg, dataset_name):
 
     return preloaded_dir
 
-
 def clustering(lmdb_path):
     batch_size = 200
     kmeans = MiniBatchKMeans(n_clusters=100, batch_size=batch_size)
@@ -144,8 +143,8 @@ def temp_inspect_data(lmdb_path):
 def main(cfg: DictConfig):
     dataset_name = cfg.data.dataset_name
     if dataset_name == 'beat':
-        train_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
-        val_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
+        train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
+        val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
         test_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
 
         # train_cache = 'data/lmdb_train_cache'

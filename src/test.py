@@ -77,47 +77,58 @@ def test(cfg: DictConfig) -> Dict[str, Any]:
 
     test_metrics = trainer.callback_metrics
 
-    return test_metrics
+    return test_metrics, None
 
 def generate_and_log_videos(model: LightningModule, datamodule: LightningDataModule, trainer: Trainer):
     """Generates and logs videos for a few samples."""
     output_dir = trainer.default_root_dir
     datamodule.setup('test')
     test_loader = datamodule.test_dataloader()
+    #print(f"######################## Test loader length: {len(test_loader)}")
     
     for batch_idx, batch in enumerate(test_loader):
-        if batch_idx >= 3:  # Log videos for the first three batches
-            break
+        #print(f"############################## Batch {batch_idx}")
+        if batch_idx == 0:
 
-        features, _, _ = batch
-        x_out, _, _ = model(features)
+            features, _, _ = batch
+            x_out, loss_commit, perplexity, codebook, code_idx = model(features)
 
-        sample_indices = [0, 7, 15]  # Indices of the samples you want to save videos for
 
-        for sample_idx in sample_indices:
-            title = f"Sample {sample_idx}, Batch {batch_idx}"
+            # Adjust sample_indices based on the actual number of samples in the batch
+            sample_indices = [i for i in [0, 7, 15] if i < features.size(0)]
 
-            mp4_paths = []
-            for target in ['target', 'generated']:
-                if target == 'target':
-                    poses_npy = features[sample_idx].cpu().numpy()
-                elif target == 'generated':
-                    poses_npy = x_out[sample_idx].cpu().numpy()
+            for sample_idx in sample_indices:
+                title = f"Sample {sample_idx}, Batch {batch_idx}"
 
-                poses_npy = unnormalize(poses_npy, model.norm_method, model.data_stat)
-                n_joints = int(poses_npy.shape[1] / 3)
-                joint_pos = poses_npy[:, :n_joints * 3]
+                mp4_paths = []
+                for target in ['target', 'generated']:
+                    if target == 'target':
+                        poses_npy = features[sample_idx].cpu().numpy()
+                    elif target == 'generated':
+                        poses_npy = x_out[sample_idx].detach().cpu().numpy()  # Detach tensor before converting to numpy
 
-                out_name = f'sample_{sample_idx}_batch_{batch_idx}_{target}.mp4'
-                out_mp4_path = render_aihub_motion(joint_pos, None, title, out_path=output_dir, out_name=out_name)
-                mp4_paths.append(out_mp4_path)
+                    poses_npy = unnormalize(poses_npy, model.norm_method, model.data_stat)
+                    n_joints = int(poses_npy.shape[1] / 3)
+                    joint_pos = poses_npy[:, :n_joints * 3]
 
-            if len(mp4_paths) == 2:
-                out_path = os.path.join(output_dir, f'sample_{sample_idx}_batch_{batch_idx}_recon.mp4')
-                cmd = ['ffmpeg', '-loglevel', 'panic', '-y', '-i', mp4_paths[0], '-i', mp4_paths[1], '-filter_complex', 'hstack', out_path]
-                subprocess.call(cmd)
-                if trainer.logger is not None:
-                    wandb.log({f"test/video_sample_{sample_idx}": wandb.Video(out_path, fps=30, format="mp4")})
+                    out_name = f'sample_{sample_idx}_batch_{batch_idx}_{target}.mp4'
+                    out_mp4_path = render_aihub_motion(joint_pos, None, title, out_path=output_dir, out_name=out_name)
+                    mp4_paths.append(out_mp4_path)
+
+                # Generate token IDs string
+                sample_code_idx = code_idx[sample_idx * 16:(sample_idx + 1) * 16].detach().cpu().numpy()
+                token_ids_str = ', '.join(map(str, sample_code_idx))
+
+                if len(mp4_paths) == 2:
+                    out_path = os.path.join(output_dir, f'sample_{sample_idx}_batch_{batch_idx}_recon.mp4')
+                    cmd = ['ffmpeg', '-loglevel', 'panic', '-y', '-i', mp4_paths[0], '-i', mp4_paths[1], '-filter_complex', 'hstack', out_path]
+                    subprocess.call(cmd)
+                    if trainer.logger is not None:
+                        # Log the video and include token IDs in the metadata
+                        video_log = wandb.Video(out_path, fps=30, format="mp4", caption=f"Tokens: {token_ids_str}")
+                        wandb.log({
+                            f"test/video_sample_{sample_idx}_batch_{batch_idx}": video_log
+                        })
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="test.yaml")
 def main(cfg: DictConfig) -> Optional[float]:
@@ -126,8 +137,8 @@ def main(cfg: DictConfig) -> Optional[float]:
     :param cfg: DictConfig configuration composed by Hydra.
     :return: Optional[float] with the test metric value.
     """
-    # apply extra utilities
     extras(cfg)
+    wandb.init(project=cfg.wandb_project, config=cfg)
 
     # test the model
     test_metrics, _ = test(cfg)
@@ -136,6 +147,8 @@ def main(cfg: DictConfig) -> Optional[float]:
     metric_value = get_metric_value(
         metric_dict=test_metrics, metric_name=cfg.get("optimized_metric")
     )
+
+    wandb.finish()
 
     # return optimized metric
     return metric_value

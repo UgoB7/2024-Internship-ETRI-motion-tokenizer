@@ -4,6 +4,7 @@ import pickle
 import sys
 import os
 import glob
+import shutil
 import torch
 import numpy as np
 import joblib
@@ -19,6 +20,7 @@ from scipy.signal import savgol_filter
 from pytorch3d import \
     transforms  # installed by running: pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
 from scipy.spatial.transform import Rotation as Rot
+from scipy.io.wavfile import write as write_wav
 
 # Add the project root to the sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
@@ -201,8 +203,8 @@ def bvh2pkl(base_path):
 
 
 def make_lmdb():
-    exclude_list = ['10_kieks_1_1_1', '10_kieks_1_2_2', '16_jorge_1_3_3', '16_jorge_5_3_3', '18_daiki_1_1_1',    # moving around. not facing front
-                    '25_goto_1_1_1', '25_goto_1_2_2', '25_goto_1_3_3']  # root position error
+    exclude_list = ['10_kieks_1_1_1', '10_kieks_1_2_2', '16_jorge_1_3_3', '16_jorge_5_3_3', '18_daiki_1_1_1', 
+                    '25_goto_1_1_1', '25_goto_1_2_2', '25_goto_1_3_3']
 
     # delete existing lmdb
     try:
@@ -247,10 +249,6 @@ def make_lmdb():
         bvh_path = data['bvh_path']
         csv_path = bvh_path.replace('.bvh', '.csv')
         if os.path.isfile(csv_path) is False:
-            # print(f'cannot find {csv_path}')
-            # continue
-
-            # use default emotion tag
             emotion_tag = '00_netural'
         else:
             with open(csv_path) as csv_file:
@@ -314,7 +312,6 @@ def make_lmdb():
 
     # calculate pose data statistics
     print('calculating data stat...')
-    # all_poses = np.vstack(all_poses)
     all_poses = np.vstack(all_poses[::3])  # too many, use a part of them
     pose_mean = np.mean(all_poses, axis=0, dtype=np.float64)
     pose_std = np.std(all_poses, axis=0, dtype=np.float64)
@@ -330,14 +327,70 @@ def make_lmdb():
     np.save('new_data/motion_data_stat.npy', np.array(np.stack((pose_mean, pose_std, pose_max, pose_min))))
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="train.yaml")
+def find_first_bvh_file(base_path: str):
+    """Find the first BVH file in the directory."""
+    for root, dirs, files in os.walk(base_path):
+        for file in files:
+            if file.endswith(".bvh"):
+                return os.path.join(root, file)
+    return None
+
+
+def find_first_wav_file(base_path: str):
+    """Find the first WAV file in the directory."""
+    for root, dirs, files in os.walk(base_path):
+        for file in files:
+            if file.endswith(".wav"):
+                return os.path.join(root, file)
+    return None
+
+
+def clone_file(file_path: str, num_clones: int = 11):
+    """Clone a file a specified number of times in the same directory."""
+    base_dir, original_file_name = os.path.split(file_path)
+    file_name, file_extension = os.path.splitext(original_file_name)
+    for i in range(1, num_clones + 1):
+        new_file_name = f"{file_name}_clone_{i}{file_extension}"
+        new_file_path = os.path.join(base_dir, new_file_name)
+        shutil.copyfile(file_path, new_file_path)
+        #print(f"Cloned {file_path} to {new_file_path}")
+
+
+def remove_clones(base_path: str, file_extension: str):
+    """Remove all cloned files with the specified extension in the directory."""
+    clone_files = glob.glob(os.path.join(base_path, f"*clone*{file_extension}"))
+    for file_path in clone_files:
+        os.remove(file_path)
+        #print(f"Removed clone {file_path}")
+
+
+@hydra.main(version_base=None, config_path="configs", config_name="eval.yaml")
 def main(cfg):
     base_path = cfg['paths']['data_dir_test']
     normalized_base_path_forWindowsUsers = os.path.normpath(base_path)
     # print('normalized_base_path_forWindowsUsers:', normalized_base_path_forWindowsUsers)
     base_path = normalized_base_path_forWindowsUsers
+    
+    # Find and clone the first BVH file
+    first_bvh_file = find_first_bvh_file(base_path)
+    if first_bvh_file:
+        clone_file(first_bvh_file)
+    else:
+        print("No BVH file found in the specified directory.")
+    
+    # Find and clone the first WAV file
+    first_wav_file = find_first_wav_file(base_path)
+    if first_wav_file:
+        clone_file(first_wav_file)
+    else:
+        print("No WAV file found in the specified directory.")
+    
     bvh2pkl(base_path)
     make_lmdb()
+
+    # Remove all cloned files
+    remove_clones(base_path, ".bvh")
+    remove_clones(base_path, ".wav")
 
 
 if __name__ == "__main__":
