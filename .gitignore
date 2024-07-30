@@ -150,6 +150,9 @@ configs/local/default.yaml
 /logs/
 .env
 /BEAT_dataset
+/new_data/
+/wandb/
+
 
 # Aim logging
 .aim
