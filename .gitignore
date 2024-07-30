@@ -153,3 +153,9 @@ configs/local/default.yaml
 
 # Aim logging
 .aim
+"new_data/lmdb_test/data.mdb" 
+"new_data/lmdb_test_cache_128/data.mdb" 
+"new_data/lmdb_train/data.mdb" 
+"new_data/lmdb_train_cache_128/data.mdb" 
+"new_data/lmdb_val/data.mdb" 
+"new_data/lmdb_val_cache_128/data.mdb" 
