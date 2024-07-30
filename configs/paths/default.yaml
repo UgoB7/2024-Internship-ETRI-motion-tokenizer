@@ -5,7 +5,7 @@ root_dir: ${oc.env:PROJECT_ROOT}
 
 # path to data directory
 data_dir: BEAT_dataset/beat_english_v0.2.1
-data_dir_test: New_bvh_dataset
+data_dir_test: single_bvh_test
 
 # path to logging directory
 log_dir: ./logs/
