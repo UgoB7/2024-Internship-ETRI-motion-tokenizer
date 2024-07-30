@@ -216,7 +216,7 @@ def make_lmdb():
 
     # create lmdb
     entry_idx = 0
-    max_map_size = int(1e11)  # 100 GB
+    max_map_size = int(1e8)  # 100 GB
     db = [lmdb.open(os.path.join('new_data', 'lmdb_train'), map_size=max_map_size),
           lmdb.open(os.path.join('new_data', 'lmdb_val'), map_size=max_map_size),
           lmdb.open(os.path.join('new_data', 'lmdb_test'), map_size=max_map_size)]
