@@ -74,11 +74,11 @@ def export_bvh(target_armature, export_filepath, frame_end):
     bpy.ops.export_anim.bvh(filepath=export_filepath)
     print("############################# Export complete.")
 
-# Main function to handle importing, retargeting, rotating, and exporting the bvh files
+
 def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     clear()  # Clear the blender scene
     
-    # Import source and target BVH files
+  
     source_armature = import_bvh(source_bvh_path)
     target_armature = import_bvh(target_bvh_path)
 
@@ -87,19 +87,19 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     frame_end = int(max(keyframes))
     frame_rate = get_frame_rate(source_bvh_path)
 
-    # Set the frame rate for the scene
+    
     bpy.context.scene.render.fps = frame_rate
 
-    # Scale the target armature to match the source armature
+    
     scale_to_match(source_armature, target_armature)
     
-    # Retarget animation from the source armature to the target armature using Auto Rig Pro remap configuration
+    
     retarget(source_armature, target_armature, remap_path, frame_end)
     
     # Apply transforms to target armature to fix any rotation or scale issues
     apply_transforms(target_armature)
     
-    # Export the retargeted and rotated animation to a new BVH file
+    
     export_bvh(target_armature, output_bvh_path, frame_end)
 
 # Paths
