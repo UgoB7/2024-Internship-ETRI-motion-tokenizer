@@ -52,7 +52,6 @@ remap_armatures(source_armature.name, target_armature.name, bmap_file_path)
 '''
 
 
-
 def gc():
     for i in range(10): bpy.ops.outliner.orphans_purge()
 
