@@ -56,7 +56,7 @@ def retarget(source_armature, target_armature, remap_path, frame_end):
 
 def apply_transforms(obj):
     bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
 def scale_to_match(source, target):
     source_dimensions = source.dimensions
