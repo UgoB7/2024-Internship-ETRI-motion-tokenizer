@@ -2,56 +2,6 @@ import bpy
 import os
 import math
 
-
-'''def import_bvh(file_path, armature_name):
-    bpy.ops.import_anim.bvh(filepath=file_path)
-    imported_armature = bpy.context.selected_objects[0]
-    imported_armature.name = armature_name
-    return imported_armature
-
-def remap_armatures(source_armature, target_armature, bmap_file):
-    # Assurez-vous que Auto Rig Pro est activé
-    if "auto_rig_pro" not in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_enable(module="auto_rig_pro")
-
-    # Sélectionnez les armatures source et cible
-    bpy.context.view_layer.objects.active = bpy.data.objects[source_armature]
-    source_obj = bpy.context.view_layer.objects.active
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-    bpy.context.view_layer.objects.active = bpy.data.objects[target_armature]
-    target_obj = bpy.context.view_layer.objects.active
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-    # Appliquez le remapping en utilisant le fichier .bmap
-    bpy.ops.object.select_all(action='DESELECT')
-    source_obj.select_set(True)
-    target_obj.select_set(True)
-    bpy.context.view_layer.objects.active = target_obj
-    
-    bpy.ops.auto_rig_pro.quick_rig(source=source_armature, target=target_armature, bmap_path=bmap_file)
-
-    # Activer l'auto scale si nécessaire
-    # Vous pouvez ajuster les paramètres de l'auto scale ici
-    bpy.ops.auto_rig_pro.auto_scale()
-
-# Remplacez les chemins des fichiers .bvh et le chemin du fichier .bmap
-source_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\4_lawrence_0_7_7.bvh'
-target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
-bmap_file_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
-
-source_armature_name = "Source_Armature"
-target_armature_name = "Target_Armature"
-
-# Importez les fichiers BVH
-source_armature = import_bvh(source_bvh_path, source_armature_name)
-target_armature = import_bvh(target_bvh_path, target_armature_name)
-
-# Remappez les armatures
-remap_armatures(source_armature.name, target_armature.name, bmap_file_path)
-'''
-
-
 def gc():
     for i in range(10): bpy.ops.outliner.orphans_purge()
 
@@ -81,7 +31,15 @@ def get_keyframes(obj_list):
                         keyframes.append(int(x))
     return keyframes
 
-def retarget(source_armature, target_armature, remap_path):
+def get_frame_rate(filepath):
+    with open(filepath, 'r') as file:
+        for line in file:
+            if "Frame Time:" in line:
+                frame_time = float(line.split(":")[1].strip())
+                return int(1 / frame_time)
+    return 24  # Default frame rate if not found
+
+def retarget(source_armature, target_armature, remap_path, frame_end):
     print("############################# Starting retargeting process...")
     bpy.context.view_layer.objects.active = source_armature
     bpy.context.scene.source_rig = source_armature.name
@@ -92,9 +50,8 @@ def retarget(source_armature, target_armature, remap_path):
     bpy.ops.arp.import_config(filepath=remap_path)
     print("############################# Auto scaling...")
     bpy.ops.arp.auto_scale()
-    keyframes = get_keyframes([source_armature])
     print("############################# Retargeting animation...")
-    bpy.ops.arp.retarget(frame_end=int(max(keyframes)))
+    bpy.ops.arp.retarget(frame_end=frame_end)
     print("############################# Retargeting complete.")
 
 def apply_transforms(obj):
@@ -108,11 +65,12 @@ def scale_to_match(source, target):
     average_scale_factor = sum(scale_factors) / len(scale_factors)
     target.scale *= average_scale_factor
 
-def export_bvh(target_armature, export_filepath):
+def export_bvh(target_armature, export_filepath, frame_end):
     print(f"############################# Exporting retargeted animation to {export_filepath}...")
     bpy.ops.object.select_all(action='DESELECT')
     target_armature.select_set(True)
     bpy.context.view_layer.objects.active = target_armature
+    bpy.context.scene.frame_end = frame_end  # Set the end frame for export
     bpy.ops.export_anim.bvh(filepath=export_filepath)
     print("############################# Export complete.")
 
@@ -124,20 +82,28 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     source_armature = import_bvh(source_bvh_path)
     target_armature = import_bvh(target_bvh_path)
 
+    # Get the number of frames and frame rate from the source armature
+    keyframes = get_keyframes([source_armature])
+    frame_end = int(max(keyframes))
+    frame_rate = get_frame_rate(source_bvh_path)
+
+    # Set the frame rate for the scene
+    bpy.context.scene.render.fps = frame_rate
+
     # Scale the target armature to match the source armature
     scale_to_match(source_armature, target_armature)
     
     # Retarget animation from the source armature to the target armature using Auto Rig Pro remap configuration
-    retarget(source_armature, target_armature, remap_path)
+    retarget(source_armature, target_armature, remap_path, frame_end)
     
     # Apply transforms to target armature to fix any rotation or scale issues
     apply_transforms(target_armature)
     
     # Export the retargeted and rotated animation to a new BVH file
-    export_bvh(target_armature, output_bvh_path)
+    export_bvh(target_armature, output_bvh_path, frame_end)
 
 # Paths
-source_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\4_lawrence_0_7_7.bvh'
+source_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\4_lawrence_0_6_6.bvh'
 target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
 output_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\output_test.bvh'
 remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
