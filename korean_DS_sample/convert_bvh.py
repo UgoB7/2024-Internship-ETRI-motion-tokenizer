@@ -1,9 +1,9 @@
 import bpy
 import os
-import math
 
 def gc():
-    for i in range(10): bpy.ops.outliner.orphans_purge()
+    for i in range(10):
+        bpy.ops.outliner.orphans_purge()
 
 def clear():
     print("#############################  Clearing the scene...")
@@ -74,11 +74,103 @@ def export_bvh(target_armature, export_filepath, frame_end):
     bpy.ops.export_anim.bvh(filepath=export_filepath)
     print("############################# Export complete.")
 
+def modify_bvh_channels(bvh_path):
+    # Function to modify channels in a BVH file
+    with open(bvh_path, 'r') as file:
+        lines = file.readlines()
+    
+    modified_lines = []
+    for line in lines:
+        if "CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation" in line:
+            modified_lines.append(line.replace("CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation", 
+                                               "CHANNELS 3 Zrotation Xrotation Yrotation"))
+        else:
+            modified_lines.append(line)
+    
+    with open(bvh_path, 'w') as file:
+        file.writelines(modified_lines)
+
+def modify_bvh_offsets(bvh_path):
+    # Function to modify OFFSET lines in a BVH file
+    with open(bvh_path, 'r') as file:
+        lines = file.readlines()
+    
+    modified_lines = []
+    for line in lines:
+        if line.strip().startswith("OFFSET"):
+            parts = line.split()
+            if len(parts) == 4:
+                indent = line[:line.index("OFFSET")]
+                modified_line = f"{indent}OFFSET {parts[1]} {parts[3]} {parts[2]}\n"
+                print(f"Modified OFFSET line: {modified_line.strip()}")  # Print modified OFFSET line
+                modified_lines.append(modified_line)
+            else:
+                modified_lines.append(line)
+        else:
+            modified_lines.append(line)
+    
+    with open(bvh_path, 'w') as file:
+        file.writelines(modified_lines)
+
+
+
+def remove_columns_from_bvh(input_file, output_file):
+    with open(input_file, 'r') as file:
+        lines = file.readlines()
+
+    # Identify the start of the motion data
+    motion_start_index = None
+    for i, line in enumerate(lines):
+        if line.startswith("MOTION"):
+            motion_start_index = i + 3  # Motion data starts after 3 lines from "MOTION"
+            break
+
+    # Extract the motion data
+    motion_data = lines[motion_start_index:]
+
+    # Initialize list to track removed columns for the first line
+    removed_columns_indices = []
+    removed_columns_values = []
+
+    # Function to determine if a column should be removed
+    def should_remove_column(index):
+        # Remove columns 7, 8, 9, 13, 14, 15, 19, 20, 21, etc.
+        for base in range(6, index + 1, 6):
+            if index == base or index == base + 1 or index == base + 2:
+                return True
+        return False
+
+    # Process the motion data to remove specified columns
+    updated_motion_data = []
+    schema = []
+    for idx, line in enumerate(motion_data):
+        values = line.split()
+        filtered_values = []
+        for i, value in enumerate(values):
+            if should_remove_column(i):
+                schema.append("x")
+                if idx == 0:  # Track removed columns only for the first line
+                    removed_columns_indices.append(i)
+                    removed_columns_values.append(value)
+            else:
+                schema.append("o")
+                filtered_values.append(value)
+        updated_motion_data.append(' '.join(filtered_values))
+        if idx == 0:  # Print removed columns for the first line
+            print("Number of columns (first line):", len(values))
+            print("Removed columns indices (first line):\n", removed_columns_indices, "\n")
+            print("Removed columns values (first line):\n", removed_columns_values, "\n")
+            print("Schema (first line):\n", ' '.join(schema), "\n")
+
+    # Write the updated data back to a new file
+    with open(output_file, 'w') as file:
+        file.writelines(lines[:motion_start_index])
+        file.writelines('\n'.join(updated_motion_data) + '\n')
+
 
 def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     clear()  # Clear the blender scene
     
-  
     source_armature = import_bvh(source_bvh_path)
     target_armature = import_bvh(target_bvh_path)
 
@@ -87,20 +179,25 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     frame_end = int(max(keyframes))
     frame_rate = get_frame_rate(source_bvh_path)
 
-    
     bpy.context.scene.render.fps = frame_rate
 
-    
     scale_to_match(source_armature, target_armature)
-    
     
     retarget(source_armature, target_armature, remap_path, frame_end)
     
     # Apply transforms to target armature to fix any rotation or scale issues
     apply_transforms(target_armature)
     
-    
     export_bvh(target_armature, output_bvh_path, frame_end)
+
+    # Modify the channels in the output BVH file
+    #modify_bvh_channels(output_bvh_path)
+    
+    # Modify OFFSET lines in the output BVH file
+    #modify_bvh_offsets(output_bvh_path)
+    
+    # Remove specified columns from the output BVH file
+    #remove_columns_from_bvh(output_bvh_path, output_bvh_path)
 
 # Paths
 source_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\4_lawrence_0_6_6.bvh'
@@ -115,3 +212,5 @@ print("############################# Remap Path:", remap_path)
 
 # Execute the conversion process
 convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path)
+
+# blender --background --python convert_bvh.py
