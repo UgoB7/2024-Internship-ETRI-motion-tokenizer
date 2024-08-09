@@ -1,6 +1,5 @@
 import bpy
 import os
-import glob
 from math import radians
 
 def gc():
@@ -61,7 +60,7 @@ def export_bvh(target_armature, export_filepath, frame_end):
     bpy.ops.object.select_all(action='DESELECT')
     target_armature.select_set(True)
     bpy.context.view_layer.objects.active = target_armature
-    bpy.context.scene.frame_end = frame_end
+    bpy.context.scene.frame_end = frame_end  # Set the end frame for export
     bpy.ops.export_anim.bvh(filepath=export_filepath)
 
 def modify_bvh_channels(bvh_path):
@@ -74,7 +73,7 @@ def modify_bvh_channels(bvh_path):
     for line in lines:
         if "CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation" in line:
             if first_occurrence:
-                modified_lines.append(line)
+                modified_lines.append(line)  # Keep the first occurrence unchanged
                 first_occurrence = False
             else:
                 modified_lines.append(line.replace("CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation", 
@@ -84,6 +83,7 @@ def modify_bvh_channels(bvh_path):
     
     with open(bvh_path, 'w') as file:
         file.writelines(modified_lines)
+
 
 def remove_columns_from_bvh(input_file, output_file):
     with open(input_file, 'r') as file:
@@ -96,19 +96,40 @@ def remove_columns_from_bvh(input_file, output_file):
             break
 
     motion_data = lines[motion_start_index:]
+    removed_columns_indices = []
+    removed_columns_values = []
+
+    def should_remove_column(index):
+        for base in range(6, index + 1, 6):
+            if index == base or index == base + 1 or index == base + 2:
+                return True
+        return False
 
     updated_motion_data = []
-    for idx, line in enumerate(motion_data):
+    schema = []
+    for line in motion_data:
         values = line.split()
-        filtered_values = [value for i, value in enumerate(values) if not (i % 6 in [0, 1, 2])]
+        filtered_values = []
+        for i, value in enumerate(values):
+            if should_remove_column(i):
+                schema.append("x")
+                if len(updated_motion_data) == 0:  # Track removed columns only for the first line
+                    removed_columns_indices.append(i)
+                    removed_columns_values.append(value)
+            else:
+                schema.append("o")
+                filtered_values.append(value)
         updated_motion_data.append(' '.join(filtered_values))
 
     with open(output_file, 'w') as file:
         file.writelines(lines[:motion_start_index])
         file.writelines('\n'.join(updated_motion_data) + '\n')
 
+
+
 def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
-    clear()
+    clear()  # Clear the blender scene
+    
     source_armature = import_bvh(source_bvh_path)
     target_armature = import_bvh(target_bvh_path)
 
@@ -127,24 +148,36 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     bpy.ops.object.mode_set(mode='OBJECT')
     
     target_armature.rotation_euler[0] -= radians(90)
+
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
     
     export_bvh(target_armature, output_bvh_path, frame_end)
+
     modify_bvh_channels(output_bvh_path)
+
     remove_columns_from_bvh(output_bvh_path, output_bvh_path)
 
-# Directory containing BVH files
-directory = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST'
+# Paths
+directory_path = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST'
 target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
 remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
 
-# List all BVH files in the directory
-bvh_files = glob.glob(os.path.join(directory, '**', '*.bvh'), recursive=True)
-print(f"Found {len(bvh_files)} BVH files")
+# List all .bvh files in the directory
+bvh_files = [f for f in os.listdir(directory_path) if f.endswith('.bvh')]
+print(f"Found {len(bvh_files)} .bvh files in the directory")
 
-# Process each file
-for i, bvh_file in enumerate(bvh_files, start=1):
-    print(f"Processing file {i}/{len(bvh_files)}: {os.path.basename(bvh_file)}")
-    output_bvh_path = bvh_file.replace(".bvh", "_converted.bvh")
-    convert_bvh(bvh_file, target_bvh_path, output_bvh_path, remap_path)
-    print(f"Completed: {os.path.basename(output_bvh_path)}")
+total_files = len(bvh_files)
+
+for index, bvh_file in enumerate(bvh_files, start=1):
+    source_bvh_path = os.path.join(directory_path, bvh_file)
+    output_bvh_path = os.path.join(directory_path, f"output_{bvh_file}")
+    
+    print(f"Processing file {index}/{total_files}: {bvh_file}")
+    
+    convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path)
+    
+    # Simple progress bar
+    progress = int((index / total_files) * 50)
+    print(f"[{'#' * progress}{'.' * (50 - progress)}] {index}/{total_files} files processed")
+
+# blender --background --python convert_bvh.py
