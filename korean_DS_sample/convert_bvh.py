@@ -237,12 +237,13 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     modify_bvh_channels(output_bvh_path)
     
     # Modify OFFSET lines in the output BVH file
-    modify_bvh_offsets(output_bvh_path)
+    #modify_bvh_offsets(output_bvh_path)
 
     remove_columns_from_bvh(output_bvh_path, output_bvh_path)
 
     # Appliquer les combinaisons de rotations
-    rotation_files = modify_bvh_rotations(output_bvh_path, output_bvh_path)
+    rotation_files  = [' ']
+    #rotation_files = modify_bvh_rotations(output_bvh_path, output_bvh_path)
     return rotation_files
 
     ########### A CHNANGER LES ROTATIONS PUIS VISUALISER LE RESULTAT
