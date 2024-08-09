@@ -134,12 +134,13 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     remove_columns_from_bvh(output_bvh_path, output_bvh_path)
 
 # Directory containing BVH files
-directory = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1'
+directory = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST'
 target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
 remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
 
 # List all BVH files in the directory
-bvh_files = glob.glob(os.path.join(directory, "*.bvh"))
+bvh_files = glob.glob(os.path.join(directory, '**', '*.bvh'), recursive=True)
+print(f"Found {len(bvh_files)} BVH files")
 
 # Process each file
 for i, bvh_file in enumerate(bvh_files, start=1):
