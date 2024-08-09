@@ -80,15 +80,22 @@ def modify_bvh_channels(bvh_path):
         lines = file.readlines()
     
     modified_lines = []
+    first_occurrence = True
+    
     for line in lines:
         if "CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation" in line:
-            modified_lines.append(line.replace("CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation", 
-                                               "CHANNELS 3 Zrotation Xrotation Yrotation"))
+            if first_occurrence:
+                modified_lines.append(line)  # Keep the first occurrence unchanged
+                first_occurrence = False
+            else:
+                modified_lines.append(line.replace("CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation", 
+                                                   "CHANNELS 3 Zrotation Xrotation Yrotation"))
         else:
             modified_lines.append(line)
     
     with open(bvh_path, 'w') as file:
         file.writelines(modified_lines)
+
 
 def modify_bvh_offsets(bvh_path):
     # Function to modify OFFSET lines in a BVH file
@@ -167,6 +174,42 @@ def remove_columns_from_bvh(input_file, output_file):
         file.writelines(lines[:motion_start_index])
         file.writelines('\n'.join(updated_motion_data) + '\n')
 
+from itertools import permutations
+def modify_bvh_rotations(bvh_path, output_bvh_path):
+    # Lire le fichier BVH
+    with open(bvh_path, 'r') as file:
+        lines = file.readlines()
+
+    # Combinaisons possibles des rotations
+    rotation_orders = list(permutations(["Xrotation", "Yrotation", "Zrotation"]))
+
+    results = []
+
+    for order in rotation_orders:
+        order_str = " ".join(order)
+        modified_lines = []
+
+        for line in lines:
+            for original_order in rotation_orders:
+                original_order_str = " ".join(original_order)
+                if original_order_str in line:
+                    line = line.replace(original_order_str, order_str)
+            modified_lines.append(line)
+
+        # Créer le nouveau chemin de fichier en fonction de l'ordre de rotation
+        base_name = os.path.splitext(output_bvh_path)[0]
+        new_bvh_path = f"{base_name}_{order_str.replace(' ', '')}.bvh"
+        
+        # Enregistrer le fichier modifié avec le nouveau nom
+        with open(new_bvh_path, 'w') as file:
+            file.writelines(modified_lines)
+
+        # Ajouter le résultat au retour de la fonction
+        results.append(new_bvh_path)
+    
+    return results
+
+
 
 def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     clear()  # Clear the blender scene
@@ -191,18 +234,28 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     export_bvh(target_armature, output_bvh_path, frame_end)
 
     # Modify the channels in the output BVH file
-    #modify_bvh_channels(output_bvh_path)
+    modify_bvh_channels(output_bvh_path)
     
     # Modify OFFSET lines in the output BVH file
-    #modify_bvh_offsets(output_bvh_path)
+    modify_bvh_offsets(output_bvh_path)
+
+    remove_columns_from_bvh(output_bvh_path, output_bvh_path)
+
+    # Appliquer les combinaisons de rotations
+    rotation_files = modify_bvh_rotations(output_bvh_path, output_bvh_path)
+    return rotation_files
+
+    ########### A CHNANGER LES ROTATIONS PUIS VISUALISER LE RESULTAT
     
     # Remove specified columns from the output BVH file
-    #remove_columns_from_bvh(output_bvh_path, output_bvh_path)
+    
+
+    
 
 # Paths
 source_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\4_lawrence_0_6_6.bvh'
 target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
-output_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\output_test.bvh'
+output_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\output.bvh'
 remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
 
 print("############################# Source BVH Path:", source_bvh_path)
@@ -210,7 +263,11 @@ print("############################# Target BVH Path:", target_bvh_path)
 print("############################# Output BVH Path:", output_bvh_path)
 print("############################# Remap Path:", remap_path)
 
-# Execute the conversion process
-convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path)
+# Execute the conversion process and obtain the list of rotation files
+rotation_files = convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path)
+
+# Print the generated files
+for file in rotation_files:
+    print(f"Generated file: {file}")
 
 # blender --background --python convert_bvh.py
