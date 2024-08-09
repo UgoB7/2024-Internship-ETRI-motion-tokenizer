@@ -2,7 +2,6 @@ import bpy
 import os
 import glob
 from math import radians
-from tqdm import tqdm
 
 def gc():
     for i in range(10):
@@ -142,7 +141,9 @@ remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset
 # List all BVH files in the directory
 bvh_files = glob.glob(os.path.join(directory, "*.bvh"))
 
-# Process each file with a progress bar
-for bvh_file in tqdm(bvh_files, desc="Processing BVH files"):
+# Process each file
+for i, bvh_file in enumerate(bvh_files, start=1):
+    print(f"Processing file {i}/{len(bvh_files)}: {os.path.basename(bvh_file)}")
     output_bvh_path = bvh_file.replace(".bvh", "_converted.bvh")
     convert_bvh(bvh_file, target_bvh_path, output_bvh_path, remap_path)
+    print(f"Completed: {os.path.basename(output_bvh_path)}")
