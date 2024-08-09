@@ -158,26 +158,33 @@ def convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path):
     remove_columns_from_bvh(output_bvh_path, output_bvh_path)
 
 # Paths
-directory_path = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST'
+directory_path = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1'
 target_bvh_path = r'D:\motion-tokenizer\korean_DS_sample\bvhnormalized_output.bvh'
 remap_path = os.path.abspath(r'D:\motion-tokenizer\korean_DS_sample\remap_preset.bmap')
 
 # List all .bvh files in the directory
-bvh_files = [f for f in os.listdir(directory_path) if f.endswith('.bvh')]
+bvh_files = []
+for root, dirs, files in os.walk(directory_path):
+    for f in files:
+        if f.endswith('.bvh'):
+            bvh_files.append(os.path.join(root, f))
+
 print(f"Found {len(bvh_files)} .bvh files in the directory")
 
 total_files = len(bvh_files)
 
 for index, bvh_file in enumerate(bvh_files, start=1):
-    source_bvh_path = os.path.join(directory_path, bvh_file)
-    output_bvh_path = os.path.join(directory_path, f"output_{bvh_file}")
+    # Obtenir le sous-répertoire et le nom de fichier
+    bvh_subdir = os.path.dirname(bvh_file)
+    bvh_filename = os.path.basename(bvh_file)
     
-    print(f"Processing file {index}/{total_files}: {bvh_file}")
+    # Construire le chemin de sortie dans le même sous-répertoire
+    output_bvh_path = os.path.join(bvh_subdir, f"output_{bvh_filename}")
     
-    convert_bvh(source_bvh_path, target_bvh_path, output_bvh_path, remap_path)
+    print(f"Processing file {index}/{total_files}: {bvh_filename}")
+    
+    convert_bvh(bvh_file, target_bvh_path, output_bvh_path, remap_path)
     
     # Simple progress bar
     progress = int((index / total_files) * 50)
     print(f"[{'#' * progress}{'.' * (50 - progress)}] {index}/{total_files} files processed")
-
-# blender --background --python convert_bvh.py
