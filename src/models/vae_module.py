@@ -234,7 +234,7 @@ class VQVaeLitModel(LightningModule):
 
         if batch_idx < 1:
             self._save_sample_video(features, x_out, batch_idx, code_idx)
-            self._log_codebook_to_wandb(codebook, code_idx, batch_idx, sample_indices=[100])
+            self._log_codebook_to_wandb(codebook, code_idx, batch_idx, sample_indices=[1])
 
         return total_loss
 
@@ -244,7 +244,7 @@ class VQVaeLitModel(LightningModule):
         """
         output_dir = self.trainer.default_root_dir
         epoch = self.current_epoch
-        sample_indices = [100]
+        sample_indices = [1]
 
         for sample_idx in sample_indices:
             title = f"Sample {sample_idx}, Epoch {epoch}, Batch {batch_idx}"

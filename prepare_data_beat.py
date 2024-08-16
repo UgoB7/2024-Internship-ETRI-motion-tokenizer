@@ -30,82 +30,6 @@ sys.path.append('./library')
 from pymo.preprocessing import Numpyfier, DownSampler, RootNormalizer, JointSelector, MocapParameterizer
 from pymo.parsers import BVHParser
 
-def read_bvh(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-    
-    hierarchy = []
-    motion = []
-    is_hierarchy = True
-    
-    for line in lines:
-        if is_hierarchy:
-            hierarchy.append(line)
-            if "MOTION" in line:
-                is_hierarchy = False
-        else:
-            motion.append(line)
-    
-    return hierarchy, motion
-
-
-def write_bvh(file_path, content):
-    with open(file_path, 'w') as file:
-        file.writelines(content)
-
-
-def normalize_and_align_bvh(file_path, output_path):
-    hierarchy, motion = read_bvh(file_path)
-    
-    # Extract initial ROOT Hips position
-    motion_data = motion[2:]  # Skip first 2 lines (Frames, Frame Time)
-    initial_frame = motion_data[0].strip().split()
-    
-    root_x = float(initial_frame[0])
-    root_y = float(initial_frame[1])
-    root_z = float(initial_frame[2])
-
-    print(f"Initial ROOT Hips position for {file_path}: ({root_x}, {root_y}, {root_z})")
-    
-    normalized_motion = [motion[0]]  # Keep Frames line
-
-    # Fix the frame time to 0.033333
-    frame_time_line = motion[1].split()
-    frame_time_line[-1] = "0.033333"  # Set Frame Time to 0.033333
-    normalized_motion.append(" ".join(frame_time_line) + "\n")  # Add updated Frame Time line
-
-    # Process only every fourth line
-    new_motion_data = []
-    for i in range(0, len(motion_data), 4):
-        line = motion_data[i]
-        values = line.strip().split()
-        x = float(values[0]) - root_x
-        y = float(values[1]) - root_y
-        z = float(values[2]) - root_z
-        normalized_values = [x, y, z] + [float(v) for v in values[3:]]
-        normalized_line = " ".join(f"{v: .6f}" for v in normalized_values) + "\n"
-        new_motion_data.append(normalized_line)
-    
-    # Update the number of frames in the first line
-    num_frames = len(new_motion_data)
-    frames_line = normalized_motion[0].split()
-    frames_line[1] = str(num_frames)
-    normalized_motion[0] = " ".join(frames_line) + "\n"
-
-    # Combine hierarchy and normalized motion
-    normalized_bvh = hierarchy[:hierarchy.index('MOTION\n')+1] + normalized_motion + new_motion_data
-    
-    write_bvh(output_path, normalized_bvh)
-
-
-def translator(base_path):
-    for root, _, files in os.walk(base_path):
-        for file in files:
-            if file.endswith('.bvh'):
-                file_path = os.path.join(root, file)
-                output_path = file_path  # Keep the same name and path for the output
-                normalize_and_align_bvh(file_path, output_path)
-
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)
@@ -127,22 +51,12 @@ def angle_between(v1, v2):
 
 
 def process_bvh(bvh_path, dump_pipeline=False):
-    target_joints = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Spine3', 'Neck', 'Neck1', 'Head', 'HeadEnd',
-                     'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
+    target_joints = ['Hips', 'Spine', 'Spine1', 'Neck', 'Neck1', 'Head',
                      'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand',
-                     'RightUpLeg', 'RightLeg', 'RightFoot', 'RightForeFoot', 'RightToeBase',
-                     'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftForeFoot', 'LeftToeBase']
-    target_joints.extend(['LeftHandThumb1', 'LeftHandThumb2', 'LeftHandThumb3', 'LeftHandThumb4',
-        'LeftHandIndex', 'LeftHandIndex1', 'LeftHandIndex2', 'LeftHandIndex3', 'LeftHandIndex4',
-        'LeftHandPinky', 'LeftHandPinky1', 'LeftHandPinky2', 'LeftHandPinky3', 'LeftHandPinky4',
-        'LeftHandRing', 'LeftHandRing1', 'LeftHandRing2', 'LeftHandRing3', 'LeftHandRing4',
-        'LeftHandMiddle1', 'LeftHandMiddle2', 'LeftHandMiddle3', 'LeftHandMiddle4',
-        'RightHandThumb1', 'RightHandThumb2', 'RightHandThumb3', 'RightHandThumb4',
-        'RightHandIndex', 'RightHandIndex1', 'RightHandIndex2', 'RightHandIndex3', 'RightHandIndex4',
-        'RightHandPinky', 'RightHandPinky1', 'RightHandPinky2', 'RightHandPinky3', 'RightHandPinky4',
-        'RightHandRing', 'RightHandRing1', 'RightHandRing2', 'RightHandRing3', 'RightHandRing4',
-        'RightHandMiddle1', 'RightHandMiddle2', 'RightHandMiddle3', 'RightHandMiddle4'
-    ])
+                     'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
+                     'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftToeBase',
+                     'RightUpLeg', 'RightLeg', 'RightFoot', 'RightToeBase']
+
 
     p = BVHParser()
     data_all = list()
@@ -170,6 +84,7 @@ def process_bvh(bvh_path, dump_pipeline=False):
 
     out_data = data_pipe.fit_transform(data_all)[0]
     if dump_pipeline:
+        print('dumping pipeline')
         joblib.dump(data_pipe, 'data/pymo_pipe.sav')
 
     out_data_pos = data_pipe_pos.fit_transform(data_all)[0]
@@ -215,16 +130,16 @@ def process_bvh(bvh_path, dump_pipeline=False):
     joint_rotations_6d = joint_rotations_6d[3::4, :]  # 120 -> 30 fps
     joint_positions = joint_positions[3::4, :]  # 120 -> 30 fps
 
-    print(root_position.shape)
-    print(joint_rotations_6d.shape)
-    print(joint_positions.shape)
+    #print(root_position.shape)
+    #print(joint_rotations_6d.shape)
+    #print(joint_positions.shape)
 
     return root_position, joint_rotations_6d, joint_positions
 
 
 def thread_work(bvh_file):
     name = os.path.split(bvh_file)[1][:-4]
-    print('processing', name)
+    print('processing:', bvh_file)
 
     # load skeletons
     root_pos, joint_rot, joint_pos = process_bvh(bvh_file, dump_pipeline=False)
@@ -271,8 +186,8 @@ def bvh2pkl(base_path):
         delayed_funs.append(delayed(thread_work)(bvh_file))
 
     # run
-    results = Parallel(n_jobs=10)(delayed_funs)
-    # results = Parallel(n_jobs=1)(delayed_funs)
+    #results = Parallel(n_jobs=10)(delayed_funs)
+    results = Parallel(n_jobs=1)(delayed_funs)
 
 
 def make_lmdb():
@@ -311,12 +226,17 @@ def make_lmdb():
         joint_rot = data['joint_rot']
         joint_pos = data['joint_pos']
 
-        # load audio
-        wav_path = data['bvh_path'].replace('.bvh', '.wav')
-        if os.path.isfile(wav_path) is False:
-            print(f'cannot find {wav_path}')
-            continue
-        audio_raw, audio_sr = librosa.load(wav_path, mono=True, sr=16000, res_type='kaiser_fast')
+        # # load audio
+        # wav_path = data['bvh_path'].replace('.bvh', '.wav')
+        # if os.path.isfile(wav_path) is False:
+        #     print(f'cannot find {wav_path}')
+        #     continue
+        # audio_raw, audio_sr = librosa.load(wav_path, mono=True, sr=16000, res_type='kaiser_fast')
+
+        audio_sr = 16000 
+        duration_in_minutes = 2  
+        duration_in_seconds = duration_in_minutes * 60  
+        audio_raw = np.zeros(int(audio_sr * duration_in_seconds))
 
         # load aux info
         bvh_path = data['bvh_path']
@@ -407,13 +327,12 @@ def make_lmdb():
 
 @hydra.main(version_base=None, config_path="configs", config_name="train.yaml")
 def main(cfg):
-    base_path = cfg['paths']['data_dir']
+    base_path = cfg['paths']['aihub_data_dir']
     normalized_base_path_forWindowsUsers = os.path.normpath(base_path)
     # print('normalized_base_path_forWindowsUsers:', normalized_base_path_forWindowsUsers)
     base_path = normalized_base_path_forWindowsUsers
-    translator(base_path)
-    #bvh2pkl(base_path)
-    #make_lmdb()
+    bvh2pkl(base_path)
+    # make_lmdb()
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import os
 import re
 
 def read_bvh(file_path):
@@ -34,7 +35,12 @@ def normalize_and_align_bvh(file_path, output_path):
     root_y = float(initial_frame[1])
     root_z = float(initial_frame[2])
 
-    print(f"Initial ROOT Hips position: ({root_x}, {root_y}, {root_z})")
+    # Check if the initial position is already (0, 0, 0)
+    if root_x == 0.0 and root_y == 0.0 and root_z == 0.0:
+        print("Initial position is already (0, 0, 0). Skipping normalization.")
+        return  # Skip this file if already at (0, 0, 0)
+    else:
+        print(f"Initial position: ({root_x}, {root_y}, {root_z}), for file: {file_path}")
     
     normalized_motion = [motion[0], motion[1]]  # Keep Frames and Frame Time lines
     for line in motion_data:
@@ -51,7 +57,37 @@ def normalize_and_align_bvh(file_path, output_path):
     
     write_bvh(output_path, hierarchy, normalized_motion)
 
+def normalize_all_bvh_in_directory(input_directory):
+    bvh_count = 0
+
+
+    for root, _, files in os.walk(input_directory):
+        for file in files:
+            if file.endswith('.bvh'):
+                input_file_path = os.path.join(root, file)
+                
+                
+                # Créer le chemin de sortie avec "_translated" ajouté au nom du fichier
+                base_name, ext = os.path.splitext(file)
+                output_file_name = f"{base_name}_translated{ext}"
+                output_file_path = os.path.join(root, output_file_name)
+
+                # Vérifier si le fichier "_translated" existe déjà
+                if os.path.exists(output_file_path):
+                    print(f"File {output_file_name} already exists. Skipping.")
+                    continue  # Skip this file if the translated version exists
+
+                bvh_count += 1
+
+                # Normaliser le fichier BVH
+                normalize_and_align_bvh(input_file_path, output_file_path)
+                print(f"Normalized file saved to: {output_file_path}")
+
+
+    print(f"\nTotal BVH files processed: {bvh_count}")
+
+
 # Usage
-input_bvh = 'korean_DS_sample/MM_D_C_FF_BB_S525S526_001_01.bvh'
-output_bvh = 'korean_DS_sample/bvhnormalized_output.bvh'
-normalize_and_align_bvh(input_bvh, output_bvh)
+input_directory = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST_TRANS'
+
+normalize_all_bvh_in_directory(input_directory)
