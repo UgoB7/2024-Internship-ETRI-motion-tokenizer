@@ -154,7 +154,6 @@ configs/local/default.yaml
 /wandb/
 /AIHUB_DATA/
 /BEAT_dataset_coonverted_sample/
-beat2aihub_converter/
 /single_bvh_test/
 
 
