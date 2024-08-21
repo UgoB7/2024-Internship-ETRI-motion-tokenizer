@@ -2,11 +2,11 @@
 
 ## Authors
 - Youngwoo
-- Ugo
+- Ugo (intern)
 
 
 ## Overview
-The goal of this project is to train a tokenizer for motion data, leveraging multiple motion datasets to create a more general and robust tokenizer. This involves exploring existing datasets and tokenizing methods.
+The goal of this project is to train a tokenizer for motion data, leveraging multiple motion datasets to create a more general tokenizer. This internship involves exploring existing datasets and tokenizing methods.
 
 ## Task/Status
 
@@ -60,3 +60,58 @@ The goal of this project is to train a tokenizer for motion data, leveraging mul
 ### Papers Using Retargeting
 - **SAME: Skeleton-Agnostic Motion Embedding for Character Animation**  
   Section 4.3.1. discusses usage of MotionBuilder for retargeting.
+
+
+How to Use This Code
+This code is based on the Hydra Lightning Template.
+
+Environment Setup
+Follow these steps to set up the environment:
+
+<!-- # Deactivate any active conda environment -->
+conda deactivate
+
+<!-- # Remove existing environment (if any) -->
+conda remove --name env --all
+
+<!-- # Create a new environment with Python 3.8 -->
+conda create -n env python=3.8
+
+<!-- # Activate the new environment -->
+conda activate env
+
+<!-- # Install PyTorch with CUDA support -->
+pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
+
+<!-- # Install iopath -->
+conda install -c iopath iopath
+
+<!-- # Install PyTorch3D -->
+pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+
+<!-- # Install remaining dependencies -->
+pip install -r requirements.txt
+
+
+Code Workflow
+1. Preprocessing Raw BVH Files
+Update the paths in the Hydra config file configs/paths/default.yaml to point to the relevant datasets:
+
+BEAT dataset: https://github.com/PantoMatrix/BEAT
+Korean dataset: AIHub dataset
+Run the prepare_data.py script to set up the data.
+
+Run data_preprocess.py to preprocess the data. Since all the data now follow the Korean AIHub skeleton structure, ensure that the dataset name in the config is set to aihub (under configs/data). The BEAT dataset BVH files were remapped using the convert_bvh.py script with Blender and the Auto Rig Pro addon.
+
+2. Training the Tokenizer
+Run the train.py script to train the tokenizer on the preprocessed data.
+3. Testing the Model
+To test the code on a new BVH file:
+Run prepare_data_test.py.
+Run data_preprocess_test.py using the path to the test BVH file in configs/paths/data_dir_test.
+4. Visualization
+You can visualize the results using:
+WandB
+BVHView
+
+

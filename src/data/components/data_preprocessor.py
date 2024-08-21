@@ -164,7 +164,7 @@ class DataPreprocessor:
             elif static_motion:
                 if random.random() < 0.95:  # allow some static samples (5%) for data diversity
                     skip_this_sample = True
-                    print(f"[skip] static motion for {vid} subdivision {i}")
+                    # print(f"[skip] static motion for {vid} subdivision {i}")
                     self.skip_stats['motion'] += 1
             elif transcription:
                 has_utterance = False
@@ -178,15 +178,15 @@ class DataPreprocessor:
                     print(f"[skip] no utterance for {vid} subdivision {i}")
                     self.skip_stats['utt'] += 1
 
-            if skip_this_sample:
-                continue
+            # if skip_this_sample:
+            #     continue
 
             # raw audio
             audio_start = math.floor(start_idx / self.motion_fps * 16000)
             audio_end = audio_start + int(self.n_poses / self.motion_fps * 16000)
             if audio_end > len(clip_audio_raw):
-                print(f"[skip] audio end exceeds clip length for {vid} subdivision {i}")
-                continue
+                # print(f"[skip] audio end exceeds clip length for {vid} subdivision {i}")
+                audio_end = len(clip_audio_raw)
             sample_audio = clip_audio_raw[audio_start:audio_end]
 
             transcription = 0 if transcription is None else transcription

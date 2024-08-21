@@ -35,12 +35,7 @@ def normalize_and_align_bvh(file_path, output_path):
     root_y = float(initial_frame[1])
     root_z = float(initial_frame[2])
 
-    # Check if the initial position is already (0, 0, 0)
-    if root_x == 0.0 and root_y == 0.0 and root_z == 0.0:
-        print("Initial position is already (0, 0, 0). Skipping normalization.")
-        return  # Skip this file if already at (0, 0, 0)
-    else:
-        print(f"Initial position: ({root_x}, {root_y}, {root_z}), for file: {file_path}")
+    print(f"Initial position: ({root_x}, {root_y}, {root_z}), for file: {file_path}")
     
     normalized_motion = [motion[0], motion[1]]  # Keep Frames and Frame Time lines
     for line in motion_data:
@@ -64,9 +59,14 @@ def normalize_all_bvh_in_directory(input_directory):
     for root, _, files in os.walk(input_directory):
         for file in files:
             if file.endswith('.bvh'):
+
+                # Skip the file if it ends with "_translated.bvh"
+                if file.endswith('_translated.bvh'):
+                    print(f"File {file} is already translated. Skipping.")
+                    continue
+
                 input_file_path = os.path.join(root, file)
-                
-                
+            
                 # Créer le chemin de sortie avec "_translated" ajouté au nom du fichier
                 base_name, ext = os.path.splitext(file)
                 output_file_name = f"{base_name}_translated{ext}"
@@ -88,6 +88,6 @@ def normalize_all_bvh_in_directory(input_directory):
 
 
 # Usage
-input_directory = r'D:\motion-tokenizer\BEAT_dataset\beat_english_v0.2.1TEST_TRANS'
+input_directory = "D:/motion-tokenizer/AIHUB_DATA"
 
 normalize_all_bvh_in_directory(input_directory)

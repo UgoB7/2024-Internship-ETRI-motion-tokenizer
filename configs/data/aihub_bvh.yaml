@@ -1,11 +1,13 @@
-_target_: src.datamodules.gesture_datamodule.GestureDataModule
-dataset_name: "aihub"
+_target_: src.data.gesture_datamodule.MotionDataModule
+dataset_name: "beat"
 motion_type: "bvh"
-train_dir: "data_aihub_bvh/lmdb_train"
-val_dir: "data_aihub_bvh/lmdb_val"
-test_dir: "data_aihub_bvh/lmdb_test"
+train_dir: "data/lmdb_train"
+val_dir: "data/lmdb_val"
+test_dir: "data/lmdb_test"
+
+
 batch_size: 256
-num_workers: 4
+num_workers: 0
 pin_memory: False
 n_poses: 128
 n_preposes: 32
@@ -13,6 +15,6 @@ n_joints: 21
 pose_dim: 189  # 21 * 9
 motion_fps: 15
 raw_data_path: ${paths.aihub_data_dir}
-data_norm_stat_path: "data_aihub_bvh/motion_data_stat.npy"
+data_norm_stat_path: "data/motion_data_stat.npy"
 normalization_method: 'mean-std'  # min-max, mean-std
 use_weighted_sampler: False

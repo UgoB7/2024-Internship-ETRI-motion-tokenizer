@@ -161,24 +161,36 @@ class VQVaeLitModel(LightningModule):
 
     def preprocess(self, x):
         # (bs, T, Jx3) -> (bs, Jx3, T)
+        print(f"[DEBUG] Preprocess - Input shape: {x.shape}")
         x = x.permute(0, 2, 1)
+        print(f"[DEBUG] Preprocess - Output shape: {x.shape}")
         return x
 
     def postprocess(self, x):
         # (bs, Jx3, T) ->  (bs, T, Jx3)
+        print(f"[DEBUG] Postprocess - Input shape: {x.shape}")
         x = x.permute(0, 2, 1)
+        print(f"[DEBUG] Postprocess - Output shape: {x.shape}")
         return x
 
     def forward(self, features: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         """
         Forward pass through the network.
         """
+        print(f"[DEBUG] Forward - Input features shape: {features.shape}")
         x_in = self.preprocess(features)
         x_encoder = self.encoder(x_in)
+        print(f"[DEBUG] Encoder output shape: {x_encoder.shape}")
+        
         x_quantized, loss_commit, perplexity, codebook, code_idx = self.quantizer(x_encoder)  # include codebook and code_idx
-        x_decoder = self.decoder(x_quantized)
-        x_out = self.postprocess(x_decoder)
+        print(f"[DEBUG] Quantizer output shapes: x_quantized={x_quantized.shape}, loss_commit={loss_commit}, perplexity={perplexity}, codebook={codebook.shape}, code_idx={code_idx.shape}")
 
+        x_decoder = self.decoder(x_quantized)
+        print(f"[DEBUG] Decoder output shape: {x_decoder.shape}")
+        
+        x_out = self.postprocess(x_decoder)
+        print(f"[DEBUG] Forward - Output features shape: {x_out.shape}")
+        
         return x_out, loss_commit, perplexity, codebook, code_idx
     
     
@@ -186,9 +198,16 @@ class VQVaeLitModel(LightningModule):
         """
         Compute the overall loss and individual components.
         """
+        print(f"[DEBUG] Compute Loss - pred_motion shape: {pred_motion.shape}, gt_motion shape: {gt_motion.shape}")
         loss_motion = self.reconstruction_loss(pred_motion, gt_motion)
+        print(f"[DEBUG] Reconstruction loss: {loss_motion.item()}")
+        
         loss_vel = self.reconstruction_loss.forward_vel(pred_motion, gt_motion)
+        print(f"[DEBUG] Velocity loss: {loss_vel.item()}")
+        
         total_loss = loss_motion + self.commit * loss_commit + self.loss_vel_factor * loss_vel
+        print(f"[DEBUG] Total loss: {total_loss.item()}")
+
         return total_loss, loss_motion, loss_commit, loss_vel
 
 
@@ -196,10 +215,17 @@ class VQVaeLitModel(LightningModule):
         """
         Training step.
         """
-        #  print(f"########################## Batch Index: {batch_idx} ##########################")
+        print(f"[DEBUG] Training Step - Batch index: {batch_idx}")
         features, _, __ = batch
-        x_out, loss_commit, perplexity, codebook, code_idx = self(features) 
-        total_loss, loss_motion, loss_commit, loss_vel = self.compute_loss(x_out, features, loss_commit)
+        print(f"[DEBUG] Batch features shape: {features.shape}")
+
+        try:
+            x_out, loss_commit, perplexity, codebook, code_idx = self(features)
+            total_loss, loss_motion, loss_commit, loss_vel = self.compute_loss(x_out, features, loss_commit)
+        except Exception as e:
+            print(f"[ERROR] Exception during training step at batch {batch_idx}: {e}")
+            raise
+
         batch_size = features.size(0)
         self.log('train_loss', total_loss, batch_size=batch_size)
         self.log('train_loss_motion', loss_motion, batch_size=batch_size)

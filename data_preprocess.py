@@ -145,21 +145,26 @@ def temp_inspect_data(lmdb_path):
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="eval.yaml")
 def main(cfg: DictConfig):
-    dataset_name = cfg.data.dataset_name
-    if dataset_name == 'beat':
-        train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
-        #print('##########################################', cfg.data.train_dir)
-        val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
-        test_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
+    # dataset_name = cfg.data.dataset_name
+    # if dataset_name == 'beat':
+    #     train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
+    #     #print('##########################################', cfg.data.train_dir)
+    #     val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
+    #     test_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
 
-        # train_cache = 'data/lmdb_train_cache'
-        # clustering(train_cache)
-        # temp_inspect_data(train_cache)
-    elif dataset_name == 'aihub':
-        train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
-        val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
-    else:
-        assert False
+    #     # train_cache = 'data/lmdb_train_cache'
+    #     # clustering(train_cache)
+    #     # temp_inspect_data(train_cache)
+    # elif dataset_name == 'aihub':
+    #     train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
+    #     val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
+    # else:
+    #     assert False
+    dataset_name = cfg.data.dataset_nam
+    train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
+    #print('##########################################', cfg.data.train_dir)
+    val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
+    test_cache = preprocess(cfg.data.test_dir, cfg.data, dataset_name)
 
 
 if __name__ == "__main__":
