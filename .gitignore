@@ -150,11 +150,8 @@ configs/local/default.yaml
 /logs/
 .env
 /BEAT_dataset/
-/new_data/
 /wandb/
 /AIHUB_DATA/
-/BEAT_dataset_coonverted_sample/
-/single_bvh_test/
 
 
 # Aim logging
