@@ -31,6 +31,8 @@ class DataPreprocessor:
 
         # create db for samples
         max_map_size = int(1e11)  # 100 GB
+        if "train" in out_lmdb_dir.lower():
+            max_map_size = int(8e11)  # 800 GB 
         self.dst_lmdb_env = lmdb.open(out_lmdb_dir, map_size=max_map_size)
 
     def run(self):

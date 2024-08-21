@@ -18,6 +18,9 @@ from scipy.signal import savgol_filter
 from pytorch3d import \
     transforms  # installed by running: pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
 from scipy.spatial.transform import Rotation as Rot
+import os
+import pickle
+from tqdm import tqdm
 
 # Add the project root to the sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
@@ -195,7 +198,7 @@ def bvh2pkl(aihub_base_path, beat_base_path):
 
     bvh_files = bvh_files_aihub + bvh_files_beat
     print(f"Total BVH files to process: {len(bvh_files)}")
-    
+
     for bvh_file in bvh_files:  # dump pipeline
         if 'MM_D_E_FF_CC_S335S336_001_01_translated' in bvh_file:  # TODO: choose a better one (having a rest finger pose at the first frame)
             print(bvh_file)
@@ -230,96 +233,111 @@ def make_lmdb():
 
     # create lmdb
     entry_idx = 0
-    max_map_size = int(1e11)  # 100 GB
-    db = [lmdb.open(os.path.join('data', 'lmdb_train'), map_size=max_map_size),
-          lmdb.open(os.path.join('data', 'lmdb_val'), map_size=max_map_size),
-          lmdb.open(os.path.join('data', 'lmdb_test'), map_size=max_map_size)]
+    # Define map sizes for each database
+    train_map_size = int(8e11)  # 800 GB
+    val_map_size = int(1e11)    # 100 GB
+    test_map_size = int(1e11)   # 100 GB
+
+    # Create the LMDB environments
+    db = [
+        lmdb.open(os.path.join('data', 'lmdb_train'), map_size=train_map_size),
+        lmdb.open(os.path.join('data', 'lmdb_val'), map_size=val_map_size),
+        lmdb.open(os.path.join('data', 'lmdb_test'), map_size=test_map_size)
+]
 
     # load pkl
     all_poses = []
     pkl_files = sorted(list(set(glob.glob('data/pkl/*.pkl')) - set(glob.glob('data/pkl/*_mirror.pkl'))))
 
     print(len(pkl_files), 'pkl files')
-    for i, pkl_file in enumerate(pkl_files):
-        if os.path.splitext(os.path.basename(pkl_file))[0] in exclude_list:
-            print('skip!', pkl_file)
-            continue
 
-        print(pkl_file)
-        with open(pkl_file, 'rb') as f:
-            data = pickle.load(f)
-        root_pos = data['root_pos']
-        joint_rot = data['joint_rot']
-        joint_pos = data['joint_pos']
+    with tqdm(total=len(pkl_files)) as pbar:
+        for i, pkl_file in enumerate(pkl_files):
+            if os.path.splitext(os.path.basename(pkl_file))[0] in exclude_list:
+                pbar.set_postfix({"status": "skip"})
+                pbar.update(1)
+                continue
 
-        # # load audio
-        # wav_path = data['bvh_path'].replace('.bvh', '.wav')
-        # if os.path.isfile(wav_path) is False:
-        #     print(f'cannot find {wav_path}')
-        #     continue
-        # audio_raw, audio_sr = librosa.load(wav_path, mono=True, sr=16000, res_type='kaiser_fast')
+            #print(pkl_file)
+            with open(pkl_file, 'rb') as f:
+                data = pickle.load(f)
+            root_pos = data['root_pos']
+            joint_rot = data['joint_rot']
+            joint_pos = data['joint_pos']
 
-        audio_sr = 16000 
-        duration_in_minutes = 2  
-        duration_in_seconds = duration_in_minutes * 60  
-        audio_raw = np.zeros(int(audio_sr * duration_in_seconds))
+            # # load audio
+            # wav_path = data['bvh_path'].replace('.bvh', '.wav')
+            # if os.path.isfile(wav_path) is False:
+            #     print(f'cannot find {wav_path}')
+            #     continue
+            # audio_raw, audio_sr = librosa.load(wav_path, mono=True, sr=16000, res_type='kaiser_fast')
 
-        # load aux info
-        bvh_path = data['bvh_path']
-        csv_path = bvh_path.replace('.bvh', '.csv')
-        if os.path.isfile(csv_path) is False:
-            # print(f'cannot find {csv_path}')
-            # continue
+            audio_sr = 16000 
+            duration_in_minutes = 2  
+            duration_in_seconds = duration_in_minutes * 60  
+            audio_raw = np.zeros(int(audio_sr * duration_in_seconds))
 
-            # use default emotion tag
-            emotion_tag = '00_netural'
-        else:
-            with open(csv_path) as csv_file:
-                csv_reader = csv.reader(csv_file, delimiter=',')
-                csv_data = list(csv_reader)
-            assert len(csv_data) == 1
-            emotion_tag = csv_data[0]
+            # load aux info
+            bvh_path = data['bvh_path']
+            csv_path = bvh_path.replace('.bvh', '.csv')
+            if os.path.isfile(csv_path) is False:
+                # print(f'cannot find {csv_path}')
+                # continue
 
-        # write to db
-        if entry_idx % 20 == 1:
-            dataset_idx = 2  # test
-        elif entry_idx % 20 == 2:
-            dataset_idx = 1  # test
-        else:
-            dataset_idx = 0  # train
+                # use default emotion tag
+                emotion_tag = '00_netural'
+            else:
+                with open(csv_path) as csv_file:
+                    csv_reader = csv.reader(csv_file, delimiter=',')
+                    csv_data = list(csv_reader)
+                assert len(csv_data) == 1
+                emotion_tag = csv_data[0]
 
-        name = os.path.split(bvh_path)[1][:-4]
-        data_all = np.concatenate((root_pos,
-                                   joint_pos.reshape(joint_pos.shape[0], -1),
-                                   joint_rot.reshape(joint_rot.shape[0], -1)), axis=1)
+            # write to db
+            if entry_idx % 20 == 1:
+                dataset_idx = 2  # test
+            elif entry_idx % 20 == 2:
+                dataset_idx = 1  # test
+            else:
+                dataset_idx = 0  # train
 
-        with db[dataset_idx].begin(write=True) as txn:
-            k = '{:010}'.format(txn.stat()['entries']).encode('ascii')
-            v = pickle.dumps({'video_name': name,
-                              'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
-                                         'emotion': emotion_tag
-                                         }]})
-            txn.put(k, v, overwrite=False)
+            name = os.path.split(bvh_path)[1][:-4]
+            data_all = np.concatenate((root_pos,
+                                    joint_pos.reshape(joint_pos.shape[0], -1),
+                                    joint_rot.reshape(joint_rot.shape[0], -1)), axis=1)
 
-            # use mirrored motion for train set
-            pkl_file_mirror = pkl_file.replace('.bvh', '_mirror.pkl')
-            assert os.path.exists(pkl_file_mirror)
-            if dataset_idx == 0 and os.path.exists(pkl_file_mirror):
-                with open(pkl_file_mirror, 'rb') as f:
-                    data = pickle.load(f)
-                    root_pos = data['root_pos']
-                    joint_rot = data['joint_rot']
-                    joint_pos = data['joint_pos']
-
+            with db[dataset_idx].begin(write=True) as txn:
                 k = '{:010}'.format(txn.stat()['entries']).encode('ascii')
-                v = pickle.dumps({'video_name': name + '_mirror',
-                                  'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
-                                             'emotion': emotion_tag
-                                             }]})
+                v = pickle.dumps({'video_name': name,
+                                'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
+                                            'emotion': emotion_tag
+                                            }]})
                 txn.put(k, v, overwrite=False)
 
-        all_poses.append(data_all)
-        entry_idx += 1
+                # use mirrored motion for train set
+                pkl_file_mirror = pkl_file.replace('.bvh', '_mirror.pkl')
+                assert os.path.exists(pkl_file_mirror)
+                if dataset_idx == 0 and os.path.exists(pkl_file_mirror):
+                    with open(pkl_file_mirror, 'rb') as f:
+                        data = pickle.load(f)
+                        root_pos = data['root_pos']
+                        joint_rot = data['joint_rot']
+                        joint_pos = data['joint_pos']
+
+                    k = '{:010}'.format(txn.stat()['entries']).encode('ascii')
+                    v = pickle.dumps({'video_name': name + '_mirror',
+                                    'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
+                                                'emotion': emotion_tag
+                                                }]})
+                    txn.put(k, v, overwrite=False)
+
+            all_poses.append(data_all)
+            entry_idx += 1
+
+            # Mise à jour de la barre de progression
+            if i % 100 == 0:
+                pbar.set_postfix({"file": pkl_file})
+            pbar.update(1)
 
     # count entries and close
     print('n_total_entries', entry_idx)
@@ -359,7 +377,7 @@ def main(cfg):
     beat_base_path = os.path.normpath(beat_base_path)
 
     bvh2pkl(aihub_base_path, beat_base_path)
-    #make_lmdb()
+    make_lmdb()
 
 
 if __name__ == "__main__":
