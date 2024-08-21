@@ -75,14 +75,14 @@ Follow these steps to set up the environment:
 # Deactivate any active conda environment
 conda deactivate
 
-# Remove existing environment named env (if any)
-conda remove --name env_MT --all
+# Remove existing environment named MT_env (if any)
+conda remove --name MT_env --all
 
-# Create a new environment named env with Python 3.8
-conda create -n env_MT python=3.8
+# Create a new environment named MT_env with Python 3.8
+conda create -n MT_env python=3.8
 
 # Activate the new environment
-conda activate env_MT
+conda activate MT_env
 
 # Install PyTorch with CUDA support
 pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
