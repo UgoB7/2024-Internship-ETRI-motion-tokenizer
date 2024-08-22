@@ -1,5 +1,5 @@
 _target_: src.data.gesture_datamodule.MotionDataModule
-dataset_name: "beat"
+dataset_name: "aihub"
 motion_type: "bvh"
 train_dir: "data/lmdb_train"
 val_dir: "data/lmdb_val"

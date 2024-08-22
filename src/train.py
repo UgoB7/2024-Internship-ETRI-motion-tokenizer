@@ -39,6 +39,16 @@ from src.utils import (
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
+def inspect_batch_sizes(dataloader):
+    for i, batch in enumerate(dataloader):
+        if isinstance(batch, torch.Tensor):
+            print(f"Batch {i} size: {batch.size()}")
+        elif isinstance(batch, (list, tuple)):
+            print(f"Batch {i} size: {[x.size() for x in batch if isinstance(x, torch.Tensor)]}")
+        else:
+            print(f"Batch {i} contains data of type: {type(batch)}")
+        if i >= 5:  # Limit to a few batches for debugging
+            break
 
 @task_wrapper
 def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -60,6 +70,17 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
         log.info(f"Instantiating datamodule <{cfg.data._target_}>")
         datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
+
+        # Inspect the batch sizes before training
+        log.info("Inspecting batch sizes from train dataloader...")
+        inspect_batch_sizes(datamodule.train_dataloader())
+
+        # If needed, also inspect validation or test dataloaders:
+        # log.info("Inspecting batch sizes from validation dataloader...")
+        # inspect_batch_sizes(datamodule.val_dataloader())
+
+        # log.info("Inspecting batch sizes from test dataloader...")
+        # inspect_batch_sizes(datamodule.test_dataloader())
 
         log.info(f"Instantiating model <{cfg.model._target_}>")
         model: LightningModule = hydra.utils.instantiate(cfg.model)
