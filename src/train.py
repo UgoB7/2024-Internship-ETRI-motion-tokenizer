@@ -67,10 +67,13 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         # set seed for random number generators in pytorch, numpy and python.random
         if cfg.get("seed"):
             L.seed_everything(cfg.seed, workers=True)
+        print(f"[DEBUG] Seed: {cfg.seed}")
+
 
         log.info(f"Instantiating datamodule <{cfg.data._target_}>")
         datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
-
+        print(f"[DEBUG] DataModule: {datamodule}")
+        
         # Inspect the batch sizes before training
         log.info("Inspecting batch sizes from train dataloader...")
         inspect_batch_sizes(datamodule.train_dataloader())
@@ -84,7 +87,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
         log.info(f"Instantiating model <{cfg.model._target_}>")
         model: LightningModule = hydra.utils.instantiate(cfg.model)
-        #print(f"[DEBUG] Model: {model}")
+        print(f"[DEBUG] Model: {model}")
 
         log.info("Instantiating callbacks...")
         callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
