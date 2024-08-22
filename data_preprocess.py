@@ -160,7 +160,7 @@ def main(cfg: DictConfig):
     #     val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)
     # else:
     #     assert False
-    dataset_name = cfg.data.dataset_nam
+    dataset_name = cfg.data.dataset_name
     train_cache = preprocess(cfg.data.train_dir, cfg.data, dataset_name)
     #print('##########################################', cfg.data.train_dir)
     val_cache = preprocess(cfg.data.val_dir, cfg.data, dataset_name)

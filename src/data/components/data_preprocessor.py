@@ -50,7 +50,8 @@ class DataPreprocessor:
 
         # print stats
         with self.dst_lmdb_env.begin() as txn:
-            print('no. of samples: ', txn.stat()['entries'])
+            #print('no. of samples: ', txn.stat()['entries'])
+            _=1
 
         # close db
         self.src_lmdb_env.close()
@@ -58,7 +59,7 @@ class DataPreprocessor:
         self.dst_lmdb_env.close()
 
         # print skip stats
-        print(self.skip_stats)
+        #print(self.skip_stats)
 
     def check_static_motion(self, skeletons, verbose=False):
         def get_variance(skeleton, joint_idx):
@@ -125,7 +126,7 @@ class DataPreprocessor:
         else:
             assert False, 'invalid dataset name'
 
-        print(f"Clip {vid} has {len(clip_skeleton)} poses after processing")
+        #print(f"Clip {vid} has {len(clip_skeleton)} poses after processing")
 
         # divide
         aux_info_list = []
@@ -140,7 +141,7 @@ class DataPreprocessor:
             (len(clip_skeleton) - self.n_poses)
             / self.subdivision_stride) + 1  # floor((K - (N+M)) / S) + 1
 
-        print(f"Clip {vid} will be divided into {num_subdivision} subdivisions")
+        #print(f"Clip {vid} will be divided into {num_subdivision} subdivisions")
 
         for i in range(num_subdivision):
             start_idx = i * self.subdivision_stride
@@ -166,7 +167,7 @@ class DataPreprocessor:
             elif static_motion:
                 if random.random() < 0.95:  # allow some static samples (5%) for data diversity
                     skip_this_sample = True
-                    # print(f"[skip] static motion for {vid} subdivision {i}")
+                    #print(f"[skip] static motion for {vid} subdivision {i}")
                     self.skip_stats['motion'] += 1
             elif transcription:
                 has_utterance = False
@@ -180,8 +181,8 @@ class DataPreprocessor:
                     print(f"[skip] no utterance for {vid} subdivision {i}")
                     self.skip_stats['utt'] += 1
 
-            # if skip_this_sample:
-            #     continue
+            if skip_this_sample:
+                continue
 
             # raw audio
             audio_start = math.floor(start_idx / self.motion_fps * 16000)
@@ -207,7 +208,7 @@ class DataPreprocessor:
 
         # save
         if len(sample_skeletons_list) > 0:
-            print(f"Saving {len(sample_skeletons_list)} samples from video {vid}")  # Debugging output
+            #print(f"Saving {len(sample_skeletons_list)} samples from video {vid}")  # Debugging output
             with self.dst_lmdb_env.begin(write=True) as txn:
                 for poses, audio, aux_info in zip(sample_skeletons_list, sample_audio_list, aux_info_list):
                     poses = np.asarray(poses)
