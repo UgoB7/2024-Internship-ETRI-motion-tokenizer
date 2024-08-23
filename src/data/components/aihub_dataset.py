@@ -76,6 +76,9 @@ class AihubDataset(Dataset):
         pose_seq = torch.from_numpy(pose_seq).reshape((pose_seq.shape[0], -1)).float()
         audio = torch.from_numpy(audio).float()
 
+        if pose_seq.shape[0] == 0:
+            raise ValueError(f"Empty pose sequence found at index {idx}")
+
         return pose_seq, audio, aux_info
 
 

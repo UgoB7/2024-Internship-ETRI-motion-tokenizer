@@ -78,7 +78,7 @@ class BeatDataset(Dataset):
 
 def tst_beat_dataset(base_path):  # test
     dataset = BeatDataset(
-        os.path.join(base_path, 'lmdb_val'), n_poses=128, motion_fps=15,
+        os.path.join(base_path, 'lmdb_val'), n_poses=128, motion_fps=30,
         data_stat=np.load("data/motion_data_stat.npy"),
         norm_method='mean-std',
         random_shift=True

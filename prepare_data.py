@@ -21,6 +21,7 @@ from scipy.spatial.transform import Rotation as Rot
 import os
 import pickle
 from tqdm import tqdm
+import random
 
 # Add the project root to the sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
@@ -180,7 +181,7 @@ def thread_work(bvh_file):
     return True
 
 
-def bvh2pkl(aihub_base_path, beat_base_path):
+def bvh2pkl(aihub_base_path, beat_base_path, use_subset=False):
     # print(base_path)
     bvh_files_aihub = sorted(glob.glob(os.path.join(aihub_base_path, '**/*.bvh'), recursive=True))
     bvh_files_beat = sorted(glob.glob(os.path.join(beat_base_path, '**/*.bvh'), recursive=True))
@@ -197,6 +198,12 @@ def bvh2pkl(aihub_base_path, beat_base_path):
     print(f"Number of BVH files translated in BEAT directory: {len(bvh_files_beat)}")
 
     bvh_files = bvh_files_aihub + bvh_files_beat
+
+    # If use_subset is True, randomly sample 5% of the files
+    if use_subset:
+        sample_size = max(1, int(0.05 * len(bvh_files))) 
+        bvh_files = random.sample(bvh_files, sample_size)
+
     print(f"Total BVH files to process: {len(bvh_files)}")
 
     for bvh_file in bvh_files:  # dump pipeline
@@ -273,7 +280,7 @@ def make_lmdb():
             # audio_raw, audio_sr = librosa.load(wav_path, mono=True, sr=16000, res_type='kaiser_fast')
 
             audio_sr = 16000 
-            duration_in_minutes = 2  
+            duration_in_minutes = 22  #max frame = 38457 and for 30fps  it  is 22 min max
             duration_in_seconds = duration_in_minutes * 60  
             audio_raw = np.zeros(int(audio_sr * duration_in_seconds))
 
@@ -368,15 +375,46 @@ def make_lmdb():
     print('data_std:', str(["{:0.5f}".format(e) for e in pose_std]).replace("'", ""))
     np.save('data/motion_data_stat.npy', np.array(np.stack((pose_mean, pose_std, pose_max, pose_min))))
 
+# To  clear the directories
+directories_to_clear = [
+    r"D:\motion-tokenizer\data\pkl",
+    r"D:\motion-tokenizer\data\processed_bvh",
+    r"D:\motion-tokenizer\data\lmdb_test",
+    r"D:\motion-tokenizer\data\lmdb_train",
+    r"D:\motion-tokenizer\data\lmdb_val",
+    r"D:\motion-tokenizer\data\lmdb_test_cache_128",
+    r"D:\motion-tokenizer\data\lmdb_val_cache_128",
+    r"D:\motion-tokenizer\data\lmdb_train_cache_128"
+]
+
+def clear_directories(directories):
+    """Clear specified directories by deleting their contents"""
+    for directory in directories:
+        if os.path.exists(directory):
+            print(f"Clearing directory: {directory}")
+            # Remove all files within the directory
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    os.remove(os.path.join(root, file))
+                for dir in dirs:
+                    os.rmdir(os.path.join(root, dir))
+        else:
+            os.makedirs(directory)  # Create the directory if it doesn't exist
+
+
 
 @hydra.main(version_base=None, config_path="configs", config_name="train.yaml")
 def main(cfg):
+
+     # Clear specified directories
+    clear_directories(directories_to_clear)
+
     aihub_base_path = cfg['paths']['aihub_data_dir']
     beat_base_path = cfg['paths']['beat_data_dir']
     aihub_base_path = os.path.normpath(aihub_base_path)
     beat_base_path = os.path.normpath(beat_base_path)
 
-    bvh2pkl(aihub_base_path, beat_base_path)
+    bvh2pkl(aihub_base_path, beat_base_path, use_subset=True)
     make_lmdb()
 
 

@@ -51,7 +51,7 @@ class DataPreprocessor:
         # print stats
         with self.dst_lmdb_env.begin() as txn:
             #print('no. of samples: ', txn.stat()['entries'])
-            _=1
+            _=0
 
         # close db
         self.src_lmdb_env.close()
@@ -118,10 +118,12 @@ class DataPreprocessor:
                 clip_skeleton = np.concatenate([root_pos, joint_pos, joint_rot], axis=1)
             else:
                 # 3d joint positions
+
+                print("###############################################  3d joint positions")
                 clip_skeleton = clip_skeleton[:].reshape(clip_skeleton.shape[0], -1)
 
             # downsample to 15 fps
-            clip_skeleton = clip_skeleton[::2]
+            #clip_skeleton = clip_skeleton[::2]
 
         else:
             assert False, 'invalid dataset name'

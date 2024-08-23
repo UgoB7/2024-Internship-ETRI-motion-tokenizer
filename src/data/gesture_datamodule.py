@@ -41,7 +41,9 @@ class MotionDataModule(LightningDataModule):
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
+        
         self.sampler = None
+
 
     def prepare_data(self):
         pass
@@ -52,13 +54,16 @@ class MotionDataModule(LightningDataModule):
         This method is called by lightning with both `trainer.fit()` and `trainer.test()`, so be
         careful not to execute things like random split twice!
         """
+
+        #print(f"###################################Train dir: {self.hparams.train_dir}, Val dir: {self.hparams.val_dir}, Test dir: {self.hparams.test_dir}")
+        #print(f"###################################not self.data_train and not self.data_val and not self.data_test: {not self.data_train and not self.data_val and not self.data_test}")
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             p = self.hparams
+        
 
-
-            print(f"Loading data for dataset: {p.dataset_name}")
-            print(f"Train dir: {p.train_dir}, Val dir: {p.val_dir}, Test dir: {p.test_dir}")
+            #print(f"+++++++++++++++++++++++++++++Loading data for dataset: {p.dataset_name}")
+            #print(f"Train dir: {p.train_dir}, Val dir: {p.val_dir}, Test dir: {p.test_dir}")
 
             data_stat = None
             if p.data_norm_stat_path:
@@ -99,15 +104,6 @@ class MotionDataModule(LightningDataModule):
                 weights = [10000 / stat_dict[labels[i]] for i in range(len(self.data_train))]
                 self.sampler = WeightedRandomSampler(torch.DoubleTensor(weights), len(weights))
 
-            # Debugging logs
-            if self.data_train:
-                print("#############################################################Training data loaded successfully.")
-            if self.data_val:
-                print("#############################################################Validation data loaded successfully.")
-            if self.data_test:
-                print("#############################################################Test data loaded successfully.")
-            else:
-                print("#############################################################Test data not loaded.")
 
     def train_dataloader(self):
         if self.data_train:

@@ -217,7 +217,7 @@ class VQVaeLitModel(LightningModule):
         """
         print(f"[DEBUG] Training Step - Batch index: {batch_idx}")
         features, _, __ = batch
-        print(f"[DEBUG] Batch features shape: {features.shape}")
+        print(f"[DEBUG] Batch features shape: {features.shape}") 
 
         try:
             x_out, loss_commit, perplexity, codebook, code_idx = self(features)
