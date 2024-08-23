@@ -143,7 +143,7 @@ def temp_inspect_data(lmdb_path):
         plt.show()
 
 
-@hydra.main(version_base="1.2", config_path="configs", config_name="eval.yaml")
+@hydra.main(version_base="1.2", config_path="configs", config_name="train.yaml")
 def main(cfg: DictConfig):
     # dataset_name = cfg.data.dataset_name
     # if dataset_name == 'beat':

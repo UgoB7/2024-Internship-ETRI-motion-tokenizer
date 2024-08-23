@@ -197,12 +197,21 @@ def bvh2pkl(aihub_base_path, beat_base_path, use_subset=False):
     print(f"Number of BVH files translated in AIHub directory: {len(bvh_files_aihub)}")
     print(f"Number of BVH files translated in BEAT directory: {len(bvh_files_beat)}")
 
-    bvh_files = bvh_files_aihub + bvh_files_beat
-
-    # If use_subset is True, randomly sample 5% of the files
+    # If use_subset is True, randomly sample X% of the files
     if use_subset:
-        sample_size = max(1, int(0.05 * len(bvh_files))) 
-        bvh_files = random.sample(bvh_files, sample_size)
+        sample_size_aihub = max(1, int(0.005 * len(bvh_files_aihub))) 
+        sample_size_beat = max(1, int(0.02 * len(bvh_files_beat)))    
+
+        bvh_files_aihub = random.sample(bvh_files_aihub, sample_size_aihub)
+        bvh_files_beat = random.sample(bvh_files_beat, sample_size_beat)
+
+    print(f"Number of subset files translated in AIHub directory: {len(bvh_files_aihub)}")
+    print(f"Number of subset files translated in BEAT directory: {len(bvh_files_beat)}")
+
+    # Combine both sampled lists
+    bvh_files = bvh_files_aihub + bvh_files_beat
+    # Shuffle the combined list to remove any order bias
+    random.shuffle(bvh_files)
 
     print(f"Total BVH files to process: {len(bvh_files)}")
 
@@ -321,22 +330,21 @@ def make_lmdb():
                                             }]})
                 txn.put(k, v, overwrite=False)
 
-                # use mirrored motion for train set
-                pkl_file_mirror = pkl_file.replace('.bvh', '_mirror.pkl')
-                assert os.path.exists(pkl_file_mirror)
-                if dataset_idx == 0 and os.path.exists(pkl_file_mirror):
-                    with open(pkl_file_mirror, 'rb') as f:
-                        data = pickle.load(f)
-                        root_pos = data['root_pos']
-                        joint_rot = data['joint_rot']
-                        joint_pos = data['joint_pos']
-
-                    k = '{:010}'.format(txn.stat()['entries']).encode('ascii')
-                    v = pickle.dumps({'video_name': name + '_mirror',
-                                    'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
-                                                'emotion': emotion_tag
-                                                }]})
-                    txn.put(k, v, overwrite=False)
+                # # use mirrored motion for train set
+                # pkl_file_mirror = pkl_file.replace('.bvh', '_mirror.pkl')
+                # assert os.path.exists(pkl_file_mirror)
+                # if dataset_idx == 0 and os.path.exists(pkl_file_mirror):
+                #     with open(pkl_file_mirror, 'rb') as f:
+                #         data = pickle.load(f)
+                #         root_pos = data['root_pos']
+                #         joint_rot = data['joint_rot']
+                #         joint_pos = data['joint_pos']
+                #     k = '{:010}'.format(txn.stat()['entries']).encode('ascii')
+                #     v = pickle.dumps({'video_name': name + '_mirror',
+                #                     'clips': [{'poses': [root_pos, joint_pos, joint_rot], 'audio_raw': audio_raw,
+                #                                 'emotion': emotion_tag
+                #                                 }]})
+                #     txn.put(k, v, overwrite=False)
 
             all_poses.append(data_all)
             entry_idx += 1
@@ -400,7 +408,6 @@ def clear_directories(directories):
                     os.rmdir(os.path.join(root, dir))
         else:
             os.makedirs(directory)  # Create the directory if it doesn't exist
-
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="train.yaml")
