@@ -99,7 +99,7 @@ def process_bvh(bvh_path, dump_pipeline=False):
     #print('############## len(target_joints):', len(target_joints))
     #print('############## out_data.shape[1]:', out_data.shape[1])
     if  out_data.shape[1] != len(target_joints) * 3 + 3:
-        #print('################### wrong joint number:', out_data.shape[1],  len(target_joints) * 3 + 3)
+        print('################### wrong joint number:', out_data.shape[1],  len(target_joints) * 3 + 3)
         return None, None, None
 
     out_data_pos = data_pipe_pos.fit_transform(data_all)[0]
@@ -154,7 +154,7 @@ def process_bvh(bvh_path, dump_pipeline=False):
     return root_position, joint_rotations_6d, joint_positions
 
 
-def thread_work(bvh_file):
+def thread_work(bvh_file,cfg):
     name = os.path.split(bvh_file)[1][:-4]
     print('processing:', bvh_file)
 
@@ -165,7 +165,8 @@ def thread_work(bvh_file):
     if root_pos is None or joint_rot is None:
         print('wrong t-pose', bvh_file)
         return False
-    out_bvh_path = os.path.join('data/processed_bvh', name + '.bvh')
+    out_bvh_path = cfg.paths.out_bvh_path.replace("XXXXXXXXX", name)
+    print('#################### out_bvh_path:', out_bvh_path)
     generate_bvh(root_pos, joint_rot, out_bvh_path, 'data/pymo_pipe.sav')
 
     # save
@@ -173,7 +174,8 @@ def thread_work(bvh_file):
     joint_rot = np.asarray(joint_rot, dtype=np.float16)  # (n, joints, 6)
     joint_pos = np.asarray(joint_pos, dtype=np.float16)  # (n, joints-1, 3)
 
-    pkl_path = os.path.join('data/pkl', name + '.pkl')
+    pkl_path = cfg.paths.pkl_path.replace("XXXXXXXXX", name)
+    print('################### pkl_path:', pkl_path)
     with open(pkl_path, 'wb') as f:
         d = {'bvh_path': bvh_file, 'root_pos': root_pos, 'joint_rot': joint_rot, 'joint_pos': joint_pos}
         pickle.dump(d, f)
@@ -181,7 +183,7 @@ def thread_work(bvh_file):
     return True
 
 
-def bvh2pkl(aihub_base_path, beat_base_path, use_subset=False):
+def bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False):
     # print(base_path)
     bvh_files_aihub = sorted(glob.glob(os.path.join(aihub_base_path, '**/*.bvh'), recursive=True))
     bvh_files_beat = sorted(glob.glob(os.path.join(beat_base_path, '**/*.bvh'), recursive=True))
@@ -199,8 +201,8 @@ def bvh2pkl(aihub_base_path, beat_base_path, use_subset=False):
 
     # If use_subset is True, randomly sample X% of the files
     if use_subset:
-        sample_size_aihub = max(1, int(0.005 * len(bvh_files_aihub))) 
-        sample_size_beat = max(1, int(0.02 * len(bvh_files_beat)))    
+        sample_size_aihub = max(1, int(0.01 * len(bvh_files_aihub))) 
+        sample_size_beat = max(1, int(0.04 * len(bvh_files_beat)))    
 
         bvh_files_aihub = random.sample(bvh_files_aihub, sample_size_aihub)
         bvh_files_beat = random.sample(bvh_files_beat, sample_size_beat)
@@ -228,38 +230,38 @@ def bvh2pkl(aihub_base_path, beat_base_path, use_subset=False):
         #print(bvh_file)
 
         # add process
-        delayed_funs.append(delayed(thread_work)(bvh_file))
+        delayed_funs.append(delayed(thread_work)(bvh_file,cfg))
 
     # run
     results = Parallel(n_jobs=-1)(delayed_funs)
-    #results = Parallel(n_jobs=1)(delayed_funs)
+    # results = Parallel(n_jobs=1)(delayed_funs)
 
 
 def make_lmdb():
     exclude_list = ['10_kieks_1_1_1', '10_kieks_1_2_2', '16_jorge_1_3_3', '16_jorge_5_3_3', '18_daiki_1_1_1',    # moving around. not facing front
                     '25_goto_1_1_1', '25_goto_1_2_2', '25_goto_1_3_3']  # root position error
 
-    # delete existing lmdb
+    # delete existing lmdb 
     try:
-        os.remove('data/lmdb_train/data.mdb'), os.remove('data/lmdb_train/lock.mdb')
-        os.remove('data/lmdb_val/data.mdb'), os.remove('data/lmdb_val/lock.mdb')
-        os.remove('data/lmdb_test/data.mdb'), os.remove('data/lmdb_test/lock.mdb')
+        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
+        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
+        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
     except OSError as e:
         pass
 
     # create lmdb
     entry_idx = 0
     # Define map sizes for each database
-    train_map_size = int(8e11)  # 800 GB
-    val_map_size = int(1e11)    # 100 GB
-    test_map_size = int(1e11)   # 100 GB
+    train_map_size = int(25e11)  
+    val_map_size = int(2e11)    
+    test_map_size = int(2e11)   
 
     # Create the LMDB environments
     db = [
-        lmdb.open(os.path.join('data', 'lmdb_train'), map_size=train_map_size),
-        lmdb.open(os.path.join('data', 'lmdb_val'), map_size=val_map_size),
-        lmdb.open(os.path.join('data', 'lmdb_test'), map_size=test_map_size)
-]
+        lmdb.open(os.path.join('E:', 'data', 'lmdb_train'), map_size=train_map_size),
+        lmdb.open(os.path.join('E:', 'data', 'lmdb_val'), map_size=val_map_size),
+        lmdb.open(os.path.join('E:', 'data', 'lmdb_test'), map_size=test_map_size)
+    ]
 
     # load pkl
     all_poses = []
@@ -385,14 +387,14 @@ def make_lmdb():
 
 # To  clear the directories
 directories_to_clear = [
-    r"D:\motion-tokenizer\data\pkl",
-    r"D:\motion-tokenizer\data\processed_bvh",
-    r"D:\motion-tokenizer\data\lmdb_test",
-    r"D:\motion-tokenizer\data\lmdb_train",
-    r"D:\motion-tokenizer\data\lmdb_val",
-    r"D:\motion-tokenizer\data\lmdb_test_cache_128",
-    r"D:\motion-tokenizer\data\lmdb_val_cache_128",
-    r"D:\motion-tokenizer\data\lmdb_train_cache_128"
+    r"E:\data\pkl",
+    r"E:\data\processed_bvh",
+    r"E:\data\lmdb_test",
+    r"E:\data\lmdb_train",
+    r"E:\data\lmdb_val",
+    r"E:\data\lmdb_test_cache_128",
+    r"E:\data\lmdb_val_cache_128",
+    r"E:\data\lmdb_train_cache_128"
 ]
 
 def clear_directories(directories):
@@ -421,7 +423,7 @@ def main(cfg):
     aihub_base_path = os.path.normpath(aihub_base_path)
     beat_base_path = os.path.normpath(beat_base_path)
 
-    bvh2pkl(aihub_base_path, beat_base_path, use_subset=True)
+    bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=True)  # use_subset=True for debugging
     make_lmdb()
 
 

@@ -7,6 +7,7 @@ import torch
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+import sys
 
 
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
@@ -41,14 +42,30 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 def inspect_batch_sizes(dataloader):
     try:
-        batch = next(iter(dataloader))  # go to the firet batch
-        features, audio, aux_info = batch
+        # Initialiser les compteurs
+        total_samples = 0
+        total_batches = 0
 
-        if isinstance(features, torch.Tensor):
-            print(f"features (pose_seq) shape: {features.size()}")
-        else:
-            print("features is not a tensor.")
-            
+        for batch in dataloader:
+            # Incrémenter le nombre de batches
+            total_batches += 1
+
+            # Extraire les informations du batch
+            features, audio, aux_info = batch
+
+            # Calculer la taille du batch (nombre d'échantillons dans ce batch)
+            batch_size = features.size(0) if isinstance(features, torch.Tensor) else 0
+
+            # Incrémenter le nombre total d'échantillons
+            total_samples += batch_size
+
+            # Afficher la taille du batch actuel
+            print(f"Batch {total_batches} size: {batch_size}")
+
+        # Résumé final
+        print(f"\nTotal number of samples: {total_samples}")
+        print(f"Total number of batches: {total_batches}")
+
     except StopIteration:
         print("Dataloader est vide.")
 
@@ -73,22 +90,26 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         # set seed for random number generators in pytorch, numpy and python.random
         if cfg.get("seed"):
             L.seed_everything(cfg.seed, workers=True)
-        print(f"[DEBUG] Seed: {cfg.seed}")
+        #print(f"[DEBUG] Seed: {cfg.seed}")
 
 
         log.info(f"Instantiating datamodule <{cfg.data._target_}>")
         datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
-        print(f"[DEBUG] DataModule: {datamodule}")
+        #print(f"[DEBUG] DataModule: {datamodule}")
+
+
+
 
         # Call setup before inspecting batch sizes
         log.info("Setting up the datamodule...")
         datamodule.setup(stage='fit')
-        
         inspect_batch_sizes(datamodule.train_dataloader())
+        #sys.exit("Processus terminé après l'inspection des tailles des batches.")
+    
 
         log.info(f"Instantiating model <{cfg.model._target_}>")
         model: LightningModule = hydra.utils.instantiate(cfg.model)
-        print(f"[DEBUG] Model: {model}")
+        #print(f"[DEBUG] Model: {model}")
 
         log.info("Instantiating callbacks...")
         callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
@@ -120,7 +141,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
             trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
 
         train_metrics = trainer.callback_metrics
-        print(f"[DEBUG] Training metrics: {train_metrics}")
+        #print(f"[DEBUG] Training metrics: {train_metrics}")
 
         if cfg.get("test"):
             log.info("Starting testing!")

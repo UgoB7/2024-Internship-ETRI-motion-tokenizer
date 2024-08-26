@@ -1,4 +1,3 @@
-""" create data samples """
 import pickle
 import random
 from collections import defaultdict
@@ -7,6 +6,7 @@ import lmdb
 import math
 import numpy as np
 import os
+from tqdm import tqdm
 
 
 class DataPreprocessor:
@@ -16,6 +16,8 @@ class DataPreprocessor:
         self.subdivision_stride = n_poses
         self.motion_fps = motion_fps
         self.skip_stats = defaultdict(int)
+        self.total_samples = 0  # Total number of samples processed
+        self.skipped_samples = 0  # Total number of skipped samples
 
         self.src_lmdb_env = lmdb.open(clip_lmdb_dir, readonly=True, lock=False)
         with self.src_lmdb_env.begin() as txn:
@@ -30,9 +32,9 @@ class DataPreprocessor:
             pass
 
         # create db for samples
-        max_map_size = int(1e11)  # 100 GB
+        max_map_size =  int(2e11)
         if "train" in out_lmdb_dir.lower():
-            max_map_size = int(8e11)  # 800 GB 
+            max_map_size = int(25e11)  
         self.dst_lmdb_env = lmdb.open(out_lmdb_dir, map_size=max_map_size)
 
     def run(self):
@@ -40,26 +42,40 @@ class DataPreprocessor:
 
         # sampling and normalization
         cursor = src_txn.cursor()
-        for key, value in cursor:
+
+
+        # Use tqdm to show progress bar
+        for key, value in tqdm(cursor, total=self.n_videos, desc="Processing videos"):
             video = pickle.loads(value)
             vid = video['video_name']
             clips = video['clips']
-            print(f"Processing video: {vid} with {len(clips)} clips")
+            print(f"\nProcessing video: {vid} with {len(clips)} clips")
             for clip_idx, clip in enumerate(clips):
                 self._sample_from_clip(vid, clip)
 
-        # print stats
+
         with self.dst_lmdb_env.begin() as txn:
-            #print('no. of samples: ', txn.stat()['entries'])
-            _=0
+            total_saved_samples = txn.stat()['entries']
 
         # close db
         self.src_lmdb_env.close()
         self.dst_lmdb_env.sync()
         self.dst_lmdb_env.close()
 
-        # print skip stats
-        #print(self.skip_stats)
+        # Print summary statistics
+        print(f"\n##################### Total samples processed: {self.total_samples}")
+        print(f"##################### Total samples skipped: {self.skipped_samples}")
+        print(f"##################### Total samples saved: {total_saved_samples}")
+        if self.total_samples > 0:
+            skip_proportion = self.skipped_samples / self.total_samples * 100
+            print(f"##################### Proportion of skipped samples: {skip_proportion:.2f}%")
+        else:
+            print("No samples were processed.")
+
+        # Detailed skip reasons
+        print("Detailed skip statistics:")
+        for reason, count in self.skip_stats.items():
+            print(f"{reason}: {count} skips ({count / self.skipped_samples * 100:.2f}% of all skips)")
 
     def check_static_motion(self, skeletons, verbose=False):
         def get_variance(skeleton, joint_idx):
@@ -92,6 +108,8 @@ class DataPreprocessor:
 
         if len(clip_skeleton) == 0 or len(clip_audio_raw) == 0:
             print(f'[skip] empty data {vid}')
+            self.skipped_samples += 1
+            self.skip_stats['empty_data'] += 1
             return
 
         if self.dataset_name == 'beat':
@@ -128,8 +146,6 @@ class DataPreprocessor:
         else:
             assert False, 'invalid dataset name'
 
-        #print(f"Clip {vid} has {len(clip_skeleton)} poses after processing")
-
         # divide
         aux_info_list = []
         sample_skeletons_list = []
@@ -143,9 +159,8 @@ class DataPreprocessor:
             (len(clip_skeleton) - self.n_poses)
             / self.subdivision_stride) + 1  # floor((K - (N+M)) / S) + 1
 
-        #print(f"Clip {vid} will be divided into {num_subdivision} subdivisions")
-
         for i in range(num_subdivision):
+            self.total_samples += 1  # Increment the total sample counter
             start_idx = i * self.subdivision_stride
             end_idx = start_idx + self.n_poses
             start_time = start_idx / self.motion_fps
@@ -156,21 +171,21 @@ class DataPreprocessor:
             static_motion, motion_var = self.check_static_motion(sample_skeletons, verbose=False)
 
             # data filtering
-
             skip_this_sample = False
             if 'start_end_frame' in clip.keys() and start_idx < clip['start_end_frame'][0]:
                 skip_this_sample = True
-                self.skip_stats['start_frame'] += 1
+                #self.skip_stats['start_frame'] += 1
+                self.skip_stats['start_end_frame_start'] += 1
                 print(f"[skip] start frame for {vid} subdivision {i}")
             elif 'start_end_frame' in clip.keys() and end_idx > clip['start_end_frame'][1]:
                 skip_this_sample = True
-                self.skip_stats['end_frame'] += 1
+                #self.skip_stats['end_frame'] += 1
+                self.skip_stats['start_end_frame_end'] += 1
                 print(f"[skip] end frame for {vid} subdivision {i}")
             elif static_motion:
                 if random.random() < 0.95:  # allow some static samples (5%) for data diversity
                     skip_this_sample = True
-                    #print(f"[skip] static motion for {vid} subdivision {i}")
-                    self.skip_stats['motion'] += 1
+                    self.skip_stats['static_motion'] += 1
             elif transcription:
                 has_utterance = False
                 for sentence in transcription:  # sorted by start_time of sentence
@@ -180,17 +195,17 @@ class DataPreprocessor:
                         has_utterance = True
                 if not has_utterance:
                     skip_this_sample = True
+                    self.skip_stats['no_utterance'] += 1
                     print(f"[skip] no utterance for {vid} subdivision {i}")
-                    self.skip_stats['utt'] += 1
 
             if skip_this_sample:
+                self.skipped_samples += 1  # Increment the skipped sample counter
                 continue
 
             # raw audio
             audio_start = math.floor(start_idx / self.motion_fps * 16000)
             audio_end = audio_start + int(self.n_poses / self.motion_fps * 16000)
             if audio_end > len(clip_audio_raw):
-                # print(f"[skip] audio end exceeds clip length for {vid} subdivision {i}")
                 audio_end = len(clip_audio_raw)
             sample_audio = clip_audio_raw[audio_start:audio_end]
 
@@ -200,8 +215,8 @@ class DataPreprocessor:
                         'end_frame_no': end_idx,
                         'start_time': start_time,
                         'end_time': end_time,
-                        'emotion': motion_var,  # todo: add motion space
-                        'transcription': transcription  # todo: store sentences of interest, not entire transcription
+                        'emotion': motion_var,
+                        'transcription': transcription
                         }
 
             sample_skeletons_list.append(sample_skeletons)
@@ -210,7 +225,6 @@ class DataPreprocessor:
 
         # save
         if len(sample_skeletons_list) > 0:
-            #print(f"Saving {len(sample_skeletons_list)} samples from video {vid}")  # Debugging output
             with self.dst_lmdb_env.begin(write=True) as txn:
                 for poses, audio, aux_info in zip(sample_skeletons_list, sample_audio_list, aux_info_list):
                     poses = np.asarray(poses)
