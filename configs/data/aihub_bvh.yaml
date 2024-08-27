@@ -1,9 +1,9 @@
 _target_: src.data.gesture_datamodule.MotionDataModule
 dataset_name: "aihub"
 motion_type: "bvh"
-train_dir: "E:/data/lmdb_train"
-val_dir: "E:/data/lmdb_val"
-test_dir: "E:/data/lmdb_test"
+train_dir: "${paths.data_dir}lmdb_train"
+val_dir: "${paths.data_dir}lmdb_val"
+test_dir: "${paths.data_dir}lmdb_test"
 
 
 batch_size: 256

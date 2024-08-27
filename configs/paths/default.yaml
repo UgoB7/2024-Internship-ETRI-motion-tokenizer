@@ -8,8 +8,11 @@ beat_data_dir: BEAT_dataset/Beat_dataset
 aihub_data_dir: AIHUB_DATA
 data_dir_test: single_bvh_test
 
+
+data_dir: "E:/data/" # path to the data eing processed (needs 6To of free space)
 pkl_path: "E:/data/pkl/XXXXXXXXX.pkl" # XXXXXXXXX will be the name of the bvh file, dynamically generated during the run
 out_bvh_path: "E:/data/processed_bvh/XXXXXXXXX.bvh"
+
 
 # path to logging directory
 log_dir: ./logs/

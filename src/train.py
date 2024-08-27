@@ -98,13 +98,11 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         #print(f"[DEBUG] DataModule: {datamodule}")
 
 
-
-
-        # Call setup before inspecting batch sizes
-        log.info("Setting up the datamodule...")
-        datamodule.setup(stage='fit')
-        inspect_batch_sizes(datamodule.train_dataloader())
-        #sys.exit("Processus terminé après l'inspection des tailles des batches.")
+        # # Call setup before inspecting batch sizes
+        # log.info("Setting up the datamodule...")
+        # datamodule.setup(stage='fit')
+        # inspect_batch_sizes(datamodule.train_dataloader())
+        # #sys.exit("Processus terminé après l'inspection des tailles des batches.")
     
 
         log.info(f"Instantiating model <{cfg.model._target_}>")

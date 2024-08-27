@@ -166,7 +166,7 @@ def thread_work(bvh_file,cfg):
         print('wrong t-pose', bvh_file)
         return False
     out_bvh_path = cfg.paths.out_bvh_path.replace("XXXXXXXXX", name)
-    print('#################### out_bvh_path:', out_bvh_path)
+    #print('#################### out_bvh_path:', out_bvh_path)
     generate_bvh(root_pos, joint_rot, out_bvh_path, 'data/pymo_pipe.sav')
 
     # save
@@ -175,7 +175,7 @@ def thread_work(bvh_file,cfg):
     joint_pos = np.asarray(joint_pos, dtype=np.float16)  # (n, joints-1, 3)
 
     pkl_path = cfg.paths.pkl_path.replace("XXXXXXXXX", name)
-    print('################### pkl_path:', pkl_path)
+    #print('################### pkl_path:', pkl_path)
     with open(pkl_path, 'wb') as f:
         d = {'bvh_path': bvh_file, 'root_pos': root_pos, 'joint_rot': joint_rot, 'joint_pos': joint_pos}
         pickle.dump(d, f)
@@ -201,8 +201,8 @@ def bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False):
 
     # If use_subset is True, randomly sample X% of the files
     if use_subset:
-        sample_size_aihub = max(1, int(0.01 * len(bvh_files_aihub))) 
-        sample_size_beat = max(1, int(0.04 * len(bvh_files_beat)))    
+        sample_size_aihub = max(1, int(0.0025 * len(bvh_files_aihub))) 
+        sample_size_beat = max(1, int(0.01 * len(bvh_files_beat)))    
 
         bvh_files_aihub = random.sample(bvh_files_aihub, sample_size_aihub)
         bvh_files_beat = random.sample(bvh_files_beat, sample_size_beat)
@@ -237,16 +237,21 @@ def bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False):
     # results = Parallel(n_jobs=1)(delayed_funs)
 
 
-def make_lmdb():
+def make_lmdb(cfg):
     exclude_list = ['10_kieks_1_1_1', '10_kieks_1_2_2', '16_jorge_1_3_3', '16_jorge_5_3_3', '18_daiki_1_1_1',    # moving around. not facing front
                     '25_goto_1_1_1', '25_goto_1_2_2', '25_goto_1_3_3']  # root position error
 
-    # delete existing lmdb 
+    # Delete existing LMDB files
     try:
-        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
-        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
-        os.remove('E:\data\lmdb_train\data.mdb'), os.remove('E:\data\lmdb_train\lock.mdb')
+        for db_path in ['lmdb_train', 'lmdb_val', 'lmdb_test']:
+            data_mdb = os.path.join(cfg.paths.data_dir, db_path, 'data.mdb')
+            lock_mdb = os.path.join(cfg.paths.data_dir, db_path, 'lock.mdb')
+            if os.path.exists(data_mdb):
+                os.remove(data_mdb)
+            if os.path.exists(lock_mdb):
+                os.remove(lock_mdb)
     except OSError as e:
+        print(f"Error deleting files: {e}")
         pass
 
     # create lmdb
@@ -258,14 +263,16 @@ def make_lmdb():
 
     # Create the LMDB environments
     db = [
-        lmdb.open(os.path.join('E:', 'data', 'lmdb_train'), map_size=train_map_size),
-        lmdb.open(os.path.join('E:', 'data', 'lmdb_val'), map_size=val_map_size),
-        lmdb.open(os.path.join('E:', 'data', 'lmdb_test'), map_size=test_map_size)
+        lmdb.open(os.path.join(cfg.paths.data_dir, 'lmdb_train'), map_size=train_map_size),
+        lmdb.open(os.path.join(cfg.paths.data_dir, 'lmdb_val'), map_size=val_map_size),
+        lmdb.open(os.path.join(cfg.paths.data_dir, 'lmdb_test'), map_size=test_map_size)
     ]
+    #print(os.path.join(cfg.paths.data_dir, 'lmdb_train'))
 
     # load pkl
     all_poses = []
-    pkl_files = sorted(list(set(glob.glob('data/pkl/*.pkl')) - set(glob.glob('data/pkl/*_mirror.pkl'))))
+    pkl_dir = cfg.paths.pkl_path.replace("XXXXXXXXX.pkl", "")
+    pkl_files = sorted(list(set(glob.glob(os.path.join(pkl_dir, '*.pkl'))) - set(glob.glob(os.path.join(pkl_dir, '*_mirror.pkl')))))
 
     print(len(pkl_files), 'pkl files')
 
@@ -383,7 +390,7 @@ def make_lmdb():
     print(pose_std.shape)
     print('data_mean:', str(["{:0.5f}".format(e) for e in pose_mean]).replace("'", ""))
     print('data_std:', str(["{:0.5f}".format(e) for e in pose_std]).replace("'", ""))
-    np.save('data/motion_data_stat.npy', np.array(np.stack((pose_mean, pose_std, pose_max, pose_min))))
+    np.save(os.path.join(cfg.paths.data_dir, 'motion_data_stat.npy'), np.array(np.stack((pose_mean, pose_std, pose_max, pose_min))))
 
 # To  clear the directories
 directories_to_clear = [
@@ -416,15 +423,15 @@ def clear_directories(directories):
 def main(cfg):
 
      # Clear specified directories
-    clear_directories(directories_to_clear)
+    #clear_directories(directories_to_clear)
 
     aihub_base_path = cfg['paths']['aihub_data_dir']
     beat_base_path = cfg['paths']['beat_data_dir']
     aihub_base_path = os.path.normpath(aihub_base_path)
     beat_base_path = os.path.normpath(beat_base_path)
 
-    bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=True)  # use_subset=True for debugging
-    make_lmdb()
+    #bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False)  # use_subset=True for debugging
+    #make_lmdb(cfg)
 
 
 if __name__ == "__main__":
