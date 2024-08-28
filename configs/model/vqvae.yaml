@@ -26,8 +26,8 @@ optimizer_cfg:
     betas: [0.9, 0.99]
     weight_decay: 0.0
 
-scheduler_cfg:  
-  target: torch.optim.lr_scheduler.CosineAnnealingLR
-  params:
-    T_max: 100
-    eta_min: 1e-6
+# scheduler_cfg:  
+#   target: torch.optim.lr_scheduler.CosineAnnealingLR
+#   params:
+#     T_max: 100
+#     eta_min: 1e-6

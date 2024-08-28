@@ -124,3 +124,91 @@ pip install -r requirements.txt
 - You can visualize the results using:
     - [WandB](https://wandb.ai/)
     - [BVHView](https://theorangeduck.com/media/uploads/BVHView/bvhview.html)
+
+
+### BVH File Processing Scripts
+
+#### Overview
+This repository contains a collection of Python scripts designed to process, modify, and manage BVH (Biovision Hierarchy) files. These scripts are useful for tasks such as frame time modification, file conversion, deletion of unwanted files, and more. Below is a description of each script and instructions on how to use them.
+
+#### Scripts
+
+##### 1. `find_bvh_with_most_frames.py`
+
+**Description**:  
+This script scans a directory to find the `.bvh` file with the most frames, specifically targeting files ending with `_translated.bvh`.
+
+**Usage**:  
+- Identifies and prints the file with the highest frame count.
+
+---
+
+##### 2. `modify_bvh_frame_time.py`
+
+**Description**:  
+Modifies the frame time of `.bvh` files to match a new frame rate. The script can optionally rename the output files.
+
+**Usage**:  
+- Adjusts the frame time of all `.bvh` files in a directory, either overwriting them or creating new files.
+
+
+
+---
+
+##### 3. `move_converted.py`
+
+**Description**:  
+Moves converted `.bvh` files to another directory after verifying that they were modified more than 10 minutes ago.
+
+**Usage**:  
+- Files with the `_converted.bvh` extension are moved to a specified destination directory.
+
+
+---
+
+##### 5. `convert_bvh.py`
+
+**Description**:  
+This script is used for retargeting and converting `.bvh` files using Blender. It applies transformations to adjust skeletons and exports the files in a modified format.
+
+**Usage**:  
+- Imports and modifies `.bvh` files in Blender.
+
+**Execution**:
+```bash
+blender --background --python convert_bvh.py
+```
+
+**Requirements**:
+- Blender and Auto Rig Pro addon
+- Python 3.x
+
+---
+
+##### 6. `delete_non_translated_files.py`
+
+**Description**:  
+Deletes all files that do not end with `_translated.bvh` in a given directory.
+
+**Usage**:  
+- Useful for cleaning up directories by removing non-translated files
+
+---
+
+##### 7. `delete_unwanted_files.py`
+
+**Description**:  
+Deletes all files that do not end with `_converted.bvh` or `_translated.bvh` in a given directory.
+
+**Usage**:  
+- Cleans up a directory by removing unwanted files.
+
+---
+
+##### 8. `bvh_hips_translator.py`
+
+**Description**:  
+Normalizes the hips position in `.bvh` files, aligning all frames relative to the first hips position.
+
+**Usage**:  
+- Translates and normalizes `.bvh` files, ensuring consistent hips positioning throughout the animation.
