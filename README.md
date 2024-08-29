@@ -6,7 +6,7 @@
 
 
 ## Overview
-The goal of this project is to train a tokenizer for motion data, leveraging multiple motion datasets to create a more general tokenizer. This internship involves exploring existing datasets and tokenizing methods.
+The goal of this project is to train a tokenizer for motion data by leveraging multiple motion datasets to create a more generalized tokenizer. This internship involves exploring existing datasets, retargeting joint structures from one to another, and training a new model for motion tokenization.
 
 ## Task/Status
 
@@ -35,10 +35,11 @@ The goal of this project is to train a tokenizer for motion data, leveraging mul
   - Implemented an inference code for a single input BVH file
   - Displayed codebook indexes in a video
 
-- **Retarget Korean Motion Data to BEAT skeleton structure**
+- **Retarget Korean Motion Data to BEAT skeleton structure using Blender Auto Rig Pro Addon**
   - Sample Data (5 BVH files)
 
 - **Combine BEAT and Korean Motion Data**
+  - preprocess all data from the two datasets
   - Trained a VQ-VAE model on the combined dataset
 
 ## Links/Resources
@@ -52,16 +53,12 @@ The goal of this project is to train a tokenizer for motion data, leveraging mul
 ### Motion Retargeting
 - **Auto Rig Pro (Blender plugin)**  
   [Auto Rig Pro on BlenderMarket](https://blendermarket.com/products/auto-rig-pro)  
-  [Tutorial Video](https://www.youtube.com/watch?v=HHnt-3uLSUo)
-  
-- **Scripts**  
-  - Found script on GitHub (not yet tested): [Render Script](https://github.com/zjp-shadow/CharacterGen/blob/6fda5658a3d322ed75b913b93e61aa2d6c08db03/render_script/blender/render.py#L42)
+- How to Use Auto-Rig Pro in Blender 4.2 to Create a Remap Preset .bmap File for Retargeting:
+  [![Watch the tuto](https://img.youtube.com/vi/VqTWtiRrw5A/maxresdefault.jpg)](https://www.youtube.com/watch?v=VqTWtiRrw5A)
 
 ### Papers Using Retargeting
 - **SAME: Skeleton-Agnostic Motion Embedding for Character Animation**  
   Section 4.3.1. discusses usage of MotionBuilder for retargeting.
-
-
 
 ## How to Use This Code
 
@@ -99,19 +96,31 @@ pip install -r requirements.txt
 
 ### Code Workflow
 
-#### 1. Preprocessing Raw BVH Files
+#### 1. Preprocessing and remapin (or retargeting)
 
 1. Update the paths in the Hydra config file `configs/paths/default.yaml` to point to the relevant datasets:
-    - BEAT dataset: [https://github.com/PantoMatrix/BEAT](https://github.com/PantoMatrix/BEAT)
-    - Korean dataset: AIHub dataset
+    - BEAT dataset `beat_data_dir`: [https://github.com/PantoMatrix/BEAT](https://github.com/PantoMatrix/BEAT)
+    - Korean dataset `aihub_data_dir`: AIHub dataset
 
-2. Run the `prepare_data.py` script to set up the data.
+In addition to updating dataset paths, you must also configure the paths for the data preprocessing directories. 
+  - `data_dir`: This is the base directory where all your data will be stored. Ensure that this directory has at least 6TB of free space available.
+  - `pkl_path`: This path should be set relative to `data_dir`. It defines where the `.pkl` files will be saved. For example, if `data_dir` is set to `"E:/data/"`, then `pkl_path` could be `"E:/data/pkl/XXXXXXXXX.pkl"`. The `XXXXXXXXX` will be dynamically generated based on the BVH file's name during the run.
+  - `out_bvh_path`: Similar to `pkl_path`, this path should also be set relative to `data_dir`. It specifies where the processed `.bvh` files will be saved. For example, `"E:/data/processed_bvh/XXXXXXXXX.bvh"`, where `XXXXXXXXX` will again be dynamically generated based on the BVH file's name.
 
-3. Run `data_preprocess.py` to preprocess the data. Since all the data now follow the Korean AIHub skeleton structure, ensure that the dataset name in the config is set to `aihub` (under `configs/data`). The BEAT dataset BVH files were remapped using the `convert_bvh.py` script with Blender and the Auto Rig Pro addon.
+2. Get the remap presets `.bmap` file for retargeting the armatures. [![Watch the tuto](https://img.youtube.com/vi/VqTWtiRrw5A/maxresdefault.jpg)](https://www.youtube.com/watch?v=VqTWtiRrw5A) and update the `remap_path` in the `convert_bvh.py`.
+3. The BEAT dataset BVH files should be remapped using the `convert_bvh.py` script with Blender and the Auto Rig Pro addon.
+
+4. Apply the `bvh_hips_translator.py` script to all the data to make sure hips (the root joint) are all at the same starting point (0,0,0).
+
+5. Apply the `modify_bvh_frame_time.py` script to modify the frame rate of bvh files which need to.
+
+6. Run the `prepare_data.py` script to set up the data.
+
+7. Run `data_preprocess.py` to preprocess the data. Since all the data now follow the Korean AIHub skeleton structure, ensure that the dataset name in the config is set to `aihub` (under `configs/data`).
 
 #### 2. Training the Tokenizer
 
-- Run the `train.py` script to train the tokenizer on the preprocessed data.
+- Run the `train.py` script to train the tokenizer on the preprocessed data. You can easily change parameters and hyperparameters under `configs/model`.
 
 #### 3. Testing the Model
 
