@@ -152,17 +152,7 @@ This script scans a directory to find the `.bvh` file with the most frames, spec
 ##### 2. `modify_bvh_frame_time.py`
 
 **Description**:  
-Modifies the frame time of `.bvh` files to match a new frame rate. The script can optionally rename the output files.
-
-
-
----
-
-##### 3. `move_converted.py`
-
-**Description**:  
-Moves converted `.bvh` files to another directory after verifying that they were modified more than 10 minutes ago.
-
+Modifies the frame time of `.bvh` files to match a new frame rate. The script can optionally rename the output files
 
 ---
 
@@ -182,21 +172,6 @@ blender --background --python convert_bvh.py
 **Requirements**:
 - Blender and Auto Rig Pro addon
 - Python 3.x
-
----
-
-##### 6. `delete_non_translated_files.py`
-
-**Description**:  
-Deletes all files that do not end with `_translated.bvh` in a given directory.
-
-
----
-
-##### 7. `delete_unwanted_files.py`
-
-**Description**:  
-Deletes all files that do not end with `_converted.bvh` or `_translated.bvh` in a given directory.
 
 
 ---
