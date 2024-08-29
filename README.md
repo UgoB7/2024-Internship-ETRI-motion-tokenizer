@@ -147,18 +147,12 @@ This repository contains a collection of Python scripts designed to process, mod
 **Description**:  
 This script scans a directory to find the `.bvh` file with the most frames, specifically targeting files ending with `_translated.bvh`.
 
-**Usage**:  
-- Identifies and prints the file with the highest frame count.
-
 ---
 
 ##### 2. `modify_bvh_frame_time.py`
 
 **Description**:  
 Modifies the frame time of `.bvh` files to match a new frame rate. The script can optionally rename the output files.
-
-**Usage**:  
-- Adjusts the frame time of all `.bvh` files in a directory, either overwriting them or creating new files.
 
 
 
@@ -168,9 +162,6 @@ Modifies the frame time of `.bvh` files to match a new frame rate. The script ca
 
 **Description**:  
 Moves converted `.bvh` files to another directory after verifying that they were modified more than 10 minutes ago.
-
-**Usage**:  
-- Files with the `_converted.bvh` extension are moved to a specified destination directory.
 
 
 ---
@@ -199,8 +190,6 @@ blender --background --python convert_bvh.py
 **Description**:  
 Deletes all files that do not end with `_translated.bvh` in a given directory.
 
-**Usage**:  
-- Useful for cleaning up directories by removing non-translated files
 
 ---
 
@@ -209,8 +198,6 @@ Deletes all files that do not end with `_translated.bvh` in a given directory.
 **Description**:  
 Deletes all files that do not end with `_converted.bvh` or `_translated.bvh` in a given directory.
 
-**Usage**:  
-- Cleans up a directory by removing unwanted files.
 
 ---
 
