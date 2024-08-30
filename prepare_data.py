@@ -201,8 +201,8 @@ def bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False):
 
     # If use_subset is True, randomly sample X% of the files
     if use_subset:
-        sample_size_aihub = max(1, int(0.0025 * len(bvh_files_aihub))) 
-        sample_size_beat = max(1, int(0.01 * len(bvh_files_beat)))    
+        sample_size_aihub = max(1, int(0.065 * len(bvh_files_aihub))) 
+        sample_size_beat = max(1, int(0.35 * len(bvh_files_beat)))    
 
         bvh_files_aihub = random.sample(bvh_files_aihub, sample_size_aihub)
         bvh_files_beat = random.sample(bvh_files_beat, sample_size_beat)
@@ -257,9 +257,9 @@ def make_lmdb(cfg):
     # create lmdb
     entry_idx = 0
     # Define map sizes for each database
-    train_map_size = int(25e11)  
-    val_map_size = int(2e11)    
-    test_map_size = int(2e11)   
+    train_map_size = int(25e11/10)  
+    val_map_size = int(2e11/10)    
+    test_map_size = int(2e11/10)   
 
     # Create the LMDB environments
     db = [
@@ -392,17 +392,6 @@ def make_lmdb(cfg):
     print('data_std:', str(["{:0.5f}".format(e) for e in pose_std]).replace("'", ""))
     np.save(os.path.join(cfg.paths.data_dir, 'motion_data_stat.npy'), np.array(np.stack((pose_mean, pose_std, pose_max, pose_min))))
 
-# To  clear the directories
-directories_to_clear = [
-    r"E:\data\pkl",
-    r"E:\data\processed_bvh",
-    r"E:\data\lmdb_test",
-    r"E:\data\lmdb_train",
-    r"E:\data\lmdb_val",
-    r"E:\data\lmdb_test_cache_128",
-    r"E:\data\lmdb_val_cache_128",
-    r"E:\data\lmdb_train_cache_128"
-]
 
 def clear_directories(directories):
     """Clear specified directories by deleting their contents"""
@@ -422,16 +411,26 @@ def clear_directories(directories):
 @hydra.main(version_base=None, config_path="configs", config_name="train.yaml")
 def main(cfg):
 
-     # Clear specified directories
-    #clear_directories(directories_to_clear)
+    # To  clear the preprocessing data directories
+    directories_to_clear = [
+        f"{cfg.paths.data_dir}/pkl",
+        f"{cfg.paths.data_dir}/processed_bvh",
+        f"{cfg.paths.data_dir}/lmdb_test",
+        f"{cfg.paths.data_dir}/lmdb_train",
+        f"{cfg.paths.data_dir}/lmdb_val",
+        f"{cfg.paths.data_dir}/lmdb_test_cache_128",
+        f"{cfg.paths.data_dir}/lmdb_val_cache_128",
+        f"{cfg.paths.data_dir}/lmdb_train_cache_128"
+    ]
+    clear_directories(directories_to_clear)
 
     aihub_base_path = cfg['paths']['aihub_data_dir']
     beat_base_path = cfg['paths']['beat_data_dir']
     aihub_base_path = os.path.normpath(aihub_base_path)
     beat_base_path = os.path.normpath(beat_base_path)
 
-    #bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=False)  # use_subset=True for debugging
-    #make_lmdb(cfg)
+    bvh2pkl(aihub_base_path, beat_base_path, cfg, use_subset=True)  # use_subset=True for debugging
+    make_lmdb(cfg)
 
 
 if __name__ == "__main__":

@@ -142,21 +142,21 @@ This repository contains a collection of Python scripts designed to process, mod
 
 #### Scripts
 
-##### 1. `find_bvh_with_most_frames.py`
+#####  `find_bvh_with_most_frames.py`
 
 **Description**:  
 This script scans a directory to find the `.bvh` file with the most frames, specifically targeting files ending with `_translated.bvh`.
 
 ---
 
-##### 2. `modify_bvh_frame_time.py`
+#####  `modify_bvh_frame_time.py`
 
 **Description**:  
 Modifies the frame time of `.bvh` files to match a new frame rate. The script can optionally rename the output files
 
 ---
 
-##### 5. `convert_bvh.py`
+##### `convert_bvh.py`
 
 **Description**:  
 This script is used for retargeting and converting `.bvh` files using Blender. It applies transformations to adjust skeletons and exports the files in a modified format.
@@ -176,7 +176,7 @@ blender --background --python convert_bvh.py
 
 ---
 
-##### 8. `bvh_hips_translator.py`
+##### `bvh_hips_translator.py`
 
 **Description**:  
 Normalizes the hips position in `.bvh` files, aligning all frames relative to the first hips position.

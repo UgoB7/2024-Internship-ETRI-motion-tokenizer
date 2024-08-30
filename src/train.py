@@ -171,12 +171,11 @@ def main(cfg: DictConfig) -> Optional[float]:
     :return: Optional[float] with optimized metric value.
     """
     try:
-        extras(cfg)  # Apply extra utilities like printing the configuration
+        extras(cfg) 
 
         # Train the model
         metric_dict, _ = train(cfg)
 
-        # Retrieve metric value for hyperparameter optimization
         metric_value = get_metric_value(
             metric_dict=metric_dict, metric_name=cfg.get("optimized_metric")
         )

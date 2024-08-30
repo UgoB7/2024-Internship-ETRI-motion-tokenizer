@@ -32,9 +32,9 @@ class DataPreprocessor:
             pass
 
         # create db for samples
-        max_map_size =  int(2e11)
+        max_map_size =  int(2e11/10)
         if "train" in out_lmdb_dir.lower():
-            max_map_size = int(25e11)  
+            max_map_size = int(25e11/10)  
         self.dst_lmdb_env = lmdb.open(out_lmdb_dir, map_size=max_map_size)
 
     def run(self):
